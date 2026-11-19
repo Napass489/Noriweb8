@@ -1,0 +1,2393 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ร้านโนริ • ชำระเงิน (Demo)</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- QRCode.js สำหรับสร้างคิวอาร์โค้ดล็อกยอดบนใบเสร็จ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- Tone.js สำหรับเล่นเสียงเพลงดนตรีจริง (ไม่ต้องพึ่งลิงก์ไฟล์เสียงภายนอก) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+  <!-- Google Fonts: Mitr (ฟอนต์หัวข้อกลมมนใกล้เคียงต้นแบบ) & Prompt (อ่านง่ายชัดเจน) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Mali:wght@500;600;700&family=Mitr:wght@400;500;600&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Mitr', 'Prompt', 'sans-serif'],
+            cute: ['Mali', 'Mitr', 'sans-serif'],
+            body: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            berry: {
+              50: '#FFF0F6',
+              100: '#FFE0EC',
+              200: '#FFC2DA',
+              300: '#FF94BE',
+              400: '#F05E92',
+              500: '#E2437C',
+              600: '#C8255C',
+              700: '#A61B4B',
+              800: '#7D173D',
+              900: '#562441',
+            }
+          },
+          boxShadow: {
+            'card-soft': '0 8px 24px -4px rgba(200, 37, 92, 0.10), 0 2px 6px -1px rgba(200, 37, 92, 0.05)',
+            'hero-pink': '0 14px 30px -8px rgba(226, 67, 124, 0.38)',
+            'btn-berry': '0 4px 12px rgba(200, 37, 92, 0.28)',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* พื้นหลังพาสเทลนมสตรอว์เบอร์รีแบบนุ่มนวล */
+    body {
+      font-family: 'Prompt', sans-serif;
+      background: radial-gradient(circle at 50% 0%, #FFF7FA 0%, #FFEAF2 55%, #FFE2EE 100%);
+      color: #562441;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ฟอนต์หัวข้อกลมมนเหมือนภาพต้นแบบ */
+    .font-title {
+      font-family: 'Mitr', sans-serif;
+    }
+
+    /* เอฟเฟกต์กรอบหน้ามือถือเมื่อเปิดบน iPad/คอมพิวเตอร์ */
+    .nori-canvas {
+      background: linear-gradient(180deg, #FFF5F9 0%, #FFF9FB 45%, #FFEBF3 100%);
+    }
+
+    /* กราดิเอนต์การ์ดยอดที่ต้องโอน */
+    .amount-card-bg {
+      background: linear-gradient(135deg, #FDE8F3 0%, #F5E1FF 52%, #EAE3FF 100%);
+    }
+
+    /* ปุ่มคัดลอกสีเบอร์รี */
+    .btn-berry {
+      background: linear-gradient(180deg, #CF2963 0%, #B81D53 100%);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    }
+    .btn-berry:hover {
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+    }
+    .btn-berry:active {
+      transform: scale(0.96);
+    }
+
+    /* แอนิเมชันลอยเบาๆ สำหรับดาวและมาสคอต */
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+    }
+    .animate-float {
+      animation: floatSlow 3.6s ease-in-out infinite;
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.95) translateY(8px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .animate-pop {
+      animation: popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* ซ่อนลูกศร input number */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    /* แอนิเมชันแผ่นเสียงหมุน */
+    @keyframes spinVinyl {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .animate-vinyl {
+      animation: spinVinyl 7s linear infinite;
+    }
+    .animate-vinyl.paused {
+      animation-play-state: paused;
+    }
+
+    /* ดีไซน์แผ่นเสียงสไตล์ซีดีพาสเทลตามภาพต้นแบบ (วงขาว-วงพาสเทล-ภาพโลโก้เต็มแผ่น-รูตรงกลาง) */
+    .cd-disc-outer {
+      background: linear-gradient(135deg, #FBCFE8 0%, #E9D5FF 55%, #DDD6FE 100%);
+      box-shadow: 0 5px 14px rgba(147, 51, 234, 0.16), 0 1px 3px rgba(200, 37, 92, 0.08);
+    }
+
+    /* แอนิเมชันมาสคอตขยับเบาๆ ตอนกำลังปริ้นใบเสร็จ QR */
+    @keyframes mascotPrintWiggle {
+      0%, 100% { transform: translateY(0) scale(1); }
+      25% { transform: translateY(-3px) scale(1.02); }
+      50% { transform: translateY(1px) scale(0.99); }
+      75% { transform: translateY(-2px) scale(1.015); }
+    }
+    .animate-mascot-print {
+      animation: mascotPrintWiggle 0.36s ease-in-out 3;
+    }
+
+    /* โน้ตดนตรีลอยฟุ้งออกจากแผ่นเสียง */
+    @keyframes floatNoteA {
+      0% { opacity: 0; transform: translate(0, 4px) scale(0.65) rotate(-12deg); }
+      25% { opacity: 1; }
+      75% { opacity: 0.85; }
+      100% { opacity: 0; transform: translate(-12px, -24px) scale(1.05) rotate(14deg); }
+    }
+    @keyframes floatNoteB {
+      0% { opacity: 0; transform: translate(0, 6px) scale(0.6) rotate(10deg); }
+      25% { opacity: 1; }
+      80% { opacity: 0.8; }
+      100% { opacity: 0; transform: translate(9px, -28px) scale(1) rotate(-14deg); }
+    }
+    @keyframes floatNoteC {
+      0% { opacity: 0; transform: translate(0, 4px) scale(0.55) rotate(-6deg); }
+      30% { opacity: 0.95; }
+      80% { opacity: 0.6; }
+      100% { opacity: 0; transform: translate(-2px, -30px) scale(0.95) rotate(10deg); }
+    }
+    .music-note-1 { animation: floatNoteA 2.6s ease-out infinite; }
+    .music-note-2 { animation: floatNoteB 3.1s ease-out 0.9s infinite; }
+    .music-note-3 { animation: floatNoteC 2.9s ease-out 1.7s infinite; }
+    .notes-paused .music-note-1,
+    .notes-paused .music-note-2,
+    .notes-paused .music-note-3 {
+      animation-play-state: paused;
+      opacity: 0;
+    }
+
+    /* ลูกเล่นเครื่องปริ้นใบเสร็จ QR โค้ด (เลื่อนกระดาษลงมาเป็นจังหวะคล้ายเครื่องปริ้นความร้อน) */
+    @keyframes receiptFeed {
+      0% {
+        transform: translateY(-92%);
+        opacity: 0;
+      }
+      20% {
+        transform: translateY(-70%);
+        opacity: 0.92;
+      }
+      45% {
+        transform: translateY(-44%);
+        opacity: 1;
+      }
+      72% {
+        transform: translateY(-16%);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(0%);
+        opacity: 1;
+      }
+    }
+    .animate-receipt-feed {
+      animation: receiptFeed 1.15s cubic-bezier(0.22, 0.9, 0.36, 1) forwards;
+    }
+
+    /* รอยต่อด้านบนของใบเสร็จ QR ให้โค้งเนียนและเฟดกลืนไปกับพื้นหลังใต้มาสคอต */
+    .receipt-printer-mask {
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0px, rgba(0, 0, 0, 0.65) 7px, #000000 14px, #000000 100%);
+      mask-image: linear-gradient(to bottom, transparent 0px, rgba(0, 0, 0, 0.65) 7px, #000000 14px, #000000 100%);
+    }
+    .receipt-paper-smooth {
+      background: linear-gradient(180deg, #FDF6FF 0%, #FFFFFF 34px, #FFFFFF 100%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 28px -6px rgba(124, 58, 158, 0.14);
+    }
+
+    /* ให้ QR Code กึ่งกลางสวยงาม */
+    #qrCodeContainer img,
+    #qrCodeContainer canvas {
+      margin: 0 auto;
+      border-radius: 10px;
+    }
+
+    /* Custom Scrollbar น่ารัก */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #FFF0F6;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #F4A3C1;
+      border-radius: 999px;
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-pink-200 selection:text-berry-900">
+
+  <!-- ==================== มุมมองที่ 1: หน้าลูกค้า (Customer Payment View) ==================== -->
+  <main id="customerView" class="w-full py-4 sm:py-8 px-2 sm:px-4 flex flex-col items-center justify-center">
+    <!-- กรอบแสดงหน้าเว็บชำระเงิน ยึดสัดส่วนและเลย์เอาต์เดิม -->
+    <div class="relative w-full max-w-[440px] nori-canvas rounded-[36px] shadow-[0_20px_60px_-15px_rgba(200,37,92,0.22)] border border-white/90 overflow-hidden pb-7">
+
+      <!-- เนื้อหาหลักภายในหน้าชำระเงิน -->
+      <div class="relative z-10 px-5 sm:px-6 pt-5 flex flex-col items-center">
+
+        <!-- 1. แถบชื่อร้านทรงกรอบแท็บโค้งมน (โลโก้กดเข้าหลังบ้านได้ + ชื่อร้าน + คำโปรย + แผ่นเสียงหมุนมีโน้ตดนตรีลอยมุมแท็บ) -->
+        <div class="relative w-full bg-white/95 rounded-[26px] px-3.5 py-2.5 shadow-card-soft border border-pink-100/90 flex items-center justify-between gap-2.5 overflow-visible">
+          <!-- ซ้าย: โลโก้ (แตะเพื่อเข้าระบบหลังบ้าน) + ชื่อร้าน + คำโปรยเล็กๆ -->
+          <div class="flex items-center gap-3 min-w-0">
+            <button
+              id="shopLogoBtn"
+              type="button"
+              onclick="switchView('admin')"
+              title="แตะโลโก้เพื่อเข้าระบบหลังบ้านร้านค้า"
+              aria-label="แตะโลโก้เพื่อเข้าระบบหลังบ้านร้านค้า"
+              class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-pink-50 border-2 border-pink-100 shadow-sm overflow-hidden shrink-0 flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-pink-300"
+            >
+              <img
+                id="shopLogoImg"
+                src="https://i.postimg.cc/SKpgMSB7/mi-m-ch-x-64-20261119072840.png"
+                alt="โลโก้ร้านโนริ"
+                onerror="this.src='https://placehold.co/96x96/FFE0EC/C8255C?text=NR'"
+                class="w-full h-full object-cover"
+              />
+            </button>
+            <div class="min-w-0">
+              <h1 id="displayShopName" class="font-title text-[18px] sm:text-[19px] font-semibold text-[#C8255C] leading-tight truncate">
+                ร้านโนริ
+              </h1>
+              <p id="displayShopTagline" class="text-[11px] sm:text-xs text-[#8A4D73] leading-snug truncate mt-0.5">
+                ยินดีต้อนรับค่ะ • โอนง่าย ตรวจไว ใจดี
+              </p>
+            </div>
+          </div>
+
+          <!-- ขวา: แผ่นเสียงสไตล์ซีดีตามภาพแนบ (โลโก้เต็มแผ่น + รูตรงกลาง + ปุ่มโน้ตดนตรีวงกลมมุมขวาล่าง + โน้ตลอย) -->
+          <button
+            id="vinylPlayerBtn"
+            type="button"
+            onclick="toggleVinylSpin(event)"
+            title="แตะเพื่อเล่นหรือหยุดเพลง"
+            class="relative shrink-0 w-14 h-14 flex items-center justify-center focus:outline-none group"
+            aria-label="เครื่องเล่นแผ่นเสียงร้านโนริ"
+          >
+            <!-- โน้ตดนตรีลอยฟุ้งออกมามุมแผ่นเสียง -->
+            <span class="music-note-1 pointer-events-none select-none absolute -top-1 left-0 text-[12px] font-bold text-fuchsia-400">♪</span>
+            <span class="music-note-2 pointer-events-none select-none absolute -top-2 right-1 text-[13px] font-bold text-purple-400">♫</span>
+            <span class="music-note-3 pointer-events-none select-none absolute top-0 right-3.5 text-[10px] font-bold text-pink-400">♬</span>
+
+            <!-- ตัวแผ่นซีดีหมุน -->
+            <div id="vinylDiscEl" class="animate-vinyl cd-disc-outer w-[52px] h-[52px] rounded-full p-[3.5px] border-[2.5px] border-white flex items-center justify-center relative">
+              <!-- ขอบขาวด้านใน + รูปโลโก้เต็มหน้าแผ่น -->
+              <div class="w-full h-full rounded-full border-[1.5px] border-white/95 overflow-hidden bg-pink-50 relative flex items-center justify-center">
+                <img
+                  id="vinylLogoImg"
+                  src="https://i.postimg.cc/SKpgMSB7/mi-m-ch-x-64-20261119072840.png"
+                  alt="โลโก้ในแผ่นเสียง"
+                  onerror="this.src='https://placehold.co/96x96/FFE0EC/C8255C?text=NR'"
+                  class="w-full h-full object-cover"
+                />
+                <!-- แสงเงามันวาวสไตล์แผ่นซีดี -->
+                <div class="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-tr from-white/10 via-white/30 to-transparent"></div>
+                <!-- รูตรงกลางแผ่นซีดี (วงพาสเทล + รูขาว) -->
+                <div class="pointer-events-none absolute z-10 w-[16px] h-[16px] rounded-full bg-white border-[3px] border-[#E3B5F3] shadow-[inset_0_1px_2px_rgba(124,58,158,0.18)]"></div>
+              </div>
+            </div>
+
+            <!-- วงกลมโน้ตดนตรีมุมขวาล่างแบบภาพต้นแบบ -->
+            <span id="vinylNoteBadge" class="pointer-events-none absolute -bottom-0.5 -right-0.5 z-20 w-6 h-6 rounded-full bg-gradient-to-br from-[#FCE7F3] to-[#E9D5FF] border-[2.5px] border-white shadow-sm flex items-center justify-center transition-transform group-active:scale-90">
+              <svg id="vinylNoteIcon" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-[#562441]">
+                <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/>
+              </svg>
+            </span>
+          </button>
+        </div>
+
+        <!-- 2. โซนมาสคอตการ์ตูน + เครื่องปริ้นใบเสร็จ QR ออกจากตัวมาสคอต -->
+        <div class="relative mt-2.5 w-full flex flex-col items-center">
+          <div id="mascotStageEl" class="relative z-20 w-[238px] sm:w-[254px] h-[142px] flex items-center justify-center">
+
+            <!-- รูปมาสคอตของร้าน -->
+            <img
+              id="customMascotImg"
+              src="https://i.postimg.cc/9MLbKGrT/mi-m-ch-x-64-20261119072808.png"
+              alt="มาสคอตร้านโนริ"
+              onerror="handleMascotImgError()"
+              class="relative z-10 max-h-[142px] max-w-[216px] object-contain drop-shadow-md animate-float rounded-2xl"
+            />
+
+            <!-- มาสคอต SVG สำรอง (แสดงอัตโนมัติหากโหลดภาพไม่สำเร็จหรือเลือกใช้ SVG จากหลังบ้าน) -->
+            <div id="defaultMascotSvg" class="hidden relative z-10 w-[240px] h-[142px] flex items-center justify-center animate-float">
+              <svg viewBox="0 0 240 148" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-sm">
+                <!-- ดาวตกแต่งรอบๆ -->
+                <path d="M46 14L49.5 22L58 23L51.5 28.5L53.5 37L46 32.5L38.5 37L40.5 28.5L34 23L42.5 22L46 14Z" fill="#74B9FF"/>
+                <path d="M24 92L27 98.5L34 99.5L29 104L30.5 111L24 107.5L17.5 111L19 104L14 99.5L21 98.5L24 92Z" fill="#FFE066"/>
+                <path d="M204 94L207 100.5L214 101.5L209 106L210.5 113L204 109.5L197.5 113L199 106L194 101.5L201 100.5L204 94Z" fill="#FFFFFF"/>
+                <circle cx="132" cy="14" r="5" fill="#FFE066"/>
+                <circle cx="195" cy="70" r="3" stroke="#E2437C" stroke-width="1.8"/>
+                <circle cx="42" cy="66" r="3" stroke="#A78BFA" stroke-width="1.8"/>
+
+                <!-- น้องกระต่ายเกาะบนหัวด้านขวา -->
+                <g transform="translate(132, 8)">
+                  <ellipse cx="22" cy="12" rx="5.5" ry="12" transform="rotate(14 22 12)" fill="#FFF5F9" stroke="#D98BB0" stroke-width="2"/>
+                  <ellipse cx="22" cy="13" rx="2.5" ry="7" transform="rotate(14 22 13)" fill="#FFB8D4"/>
+                  <ellipse cx="34" cy="24" rx="12" ry="5.5" transform="rotate(-18 34 24)" fill="#FFF5F9" stroke="#D98BB0" stroke-width="2"/>
+                  <ellipse cx="21" cy="25" rx="14" ry="11.5" fill="#FFF8FB" stroke="#D98BB0" stroke-width="2"/>
+                  <circle cx="16" cy="24" r="1.8" fill="#562441"/>
+                  <circle cx="25" cy="26" r="1.8" fill="#562441"/>
+                  <ellipse cx="13.5" cy="27" rx="2.5" ry="1.5" fill="#FF9EBC"/>
+                  <ellipse cx="27.5" cy="29" rx="2.5" ry="1.5" fill="#FF9EBC"/>
+                  <path d="M19 27.5Q20.5 29.5 22 27.8" stroke="#562441" stroke-width="1.5" stroke-linecap="round"/>
+                </g>
+
+                <!-- ผมด้านหลังสีชมพูพาสเทลฟูๆ -->
+                <path d="M70 55C54 68 50 96 58 118C66 132 82 134 90 128L150 128C158 134 174 132 182 118C190 96 186 68 170 55C158 34 140 26 120 26C100 26 82 34 70 55Z" fill="#FFC2DE" stroke="#E38EB5" stroke-width="2.2"/>
+                <path d="M62 78C50 86 48 104 58 116" stroke="#FF9BC8" stroke-width="5" stroke-linecap="round"/>
+                <path d="M178 78C190 86 192 104 182 116" stroke="#FF9BC8" stroke-width="5" stroke-linecap="round"/>
+
+                <!-- หูน้องน้อยๆ ซ้าย-ขวา -->
+                <ellipse cx="78" cy="78" rx="9" ry="6" transform="rotate(-15 78 78)" fill="#FFE6DC" stroke="#DF9D9B" stroke-width="1.8"/>
+                <ellipse cx="162" cy="78" rx="9" ry="6" transform="rotate(15 162 78)" fill="#FFE6DC" stroke="#DF9D9B" stroke-width="1.8"/>
+
+                <!-- ใบหน้าจิบิ -->
+                <path d="M84 68C84 48 100 38 120 38C140 38 156 48 156 68C156 90 142 104 120 104C98 104 84 90 84 68Z" fill="#FFF0E8" stroke="#DF9D9B" stroke-width="2"/>
+
+                <!-- ผมหน้าม้า -->
+                <path d="M82 64C84 42 100 30 120 30C140 30 156 42 158 64C150 56 144 64 138 68C132 60 126 54 120 68C114 54 108 60 102 68C96 64 90 56 82 64Z" fill="#FFD1E8" stroke="#E38EB5" stroke-width="2" stroke-linejoin="round"/>
+
+                <!-- โบว์สีม่วงพาสเทลและกิ๊บน่ารัก -->
+                <g transform="translate(132, 34) rotate(12)">
+                  <path d="M12 10L0 2L2 18L12 10Z" fill="#B794F4" stroke="#805AD5" stroke-width="1.6"/>
+                  <path d="M12 10L24 2L22 18L12 10Z" fill="#C4B5FD" stroke="#805AD5" stroke-width="1.6"/>
+                  <circle cx="12" cy="10" r="3.5" fill="#9F7AEA" stroke="#805AD5" stroke-width="1.5"/>
+                </g>
+                <!-- กิ๊บสามเหลี่ยมสีส้ม-เหลือง -->
+                <path d="M88 46L99 42L95 53Z" fill="#FDE047" stroke="#F59E0B" stroke-width="1.8" stroke-linejoin="round"/>
+                <!-- กิ๊บหัวใจชมพู -->
+                <path d="M107 34C105 31 101 33 103 37L107 40L111 37C113 33 109 31 107 34Z" fill="#FF6B9E"/>
+
+                <!-- ดวงตากลมโตเป็นประกาย -->
+                <ellipse cx="103" cy="76" rx="8.5" ry="9.5" fill="#5D372C"/>
+                <circle cx="103" cy="78" r="5" fill="#B87A4B"/>
+                <circle cx="100" cy="72" r="3" fill="#FFFFFF"/>
+                <circle cx="106" cy="80" r="1.6" fill="#FFFFFF"/>
+
+                <ellipse cx="137" cy="76" rx="8.5" ry="9.5" fill="#5D372C"/>
+                <circle cx="137" cy="78" r="5" fill="#B87A4B"/>
+                <circle cx="134" cy="72" r="3" fill="#FFFFFF"/>
+                <circle cx="140" cy="80" r="1.6" fill="#FFFFFF"/>
+
+                <!-- แก้มชมพูและปากยิ้มร่าเริง -->
+                <ellipse cx="92" cy="85" rx="6" ry="3.5" fill="#FF9EBC" fill-opacity="0.7"/>
+                <ellipse cx="148" cy="85" rx="6" ry="3.5" fill="#FF9EBC" fill-opacity="0.7"/>
+                <path d="M114 86C114 86 120 84 126 86C126 93 123 96 120 96C117 96 114 93 114 86Z" fill="#E8637A"/>
+                <path d="M116 92C118 90 122 90 124 92C123 95 117 95 116 92Z" fill="#FF9EB5"/>
+
+                <!-- ตัวชุดน่ารัก -->
+                <path d="M98 104H142L148 136H92L98 104Z" fill="#FFFFFF" stroke="#E38EB5" stroke-width="2"/>
+                <path d="M112 104L120 118L128 104" fill="#FFD1E8"/>
+                <circle cx="120" cy="116" r="4" fill="#FF7AA8"/>
+
+                <!-- โทรศัพท์ด้านซ้าย (หน้าสลิปสีชมพู) -->
+                <g transform="translate(68, 92) rotate(-18)">
+                  <rect x="0" y="0" width="32" height="44" rx="6" fill="#A78BFA" stroke="#7C3AED" stroke-width="2"/>
+                  <rect x="3" y="4" width="26" height="36" rx="3" fill="#FFF5F9"/>
+                  <rect x="6" y="8" width="20" height="7" rx="2" fill="#F472B6"/>
+                  <rect x="6" y="18" width="14" height="3" rx="1.5" fill="#FBCFE8"/>
+                  <rect x="6" y="23" width="20" height="3" rx="1.5" fill="#FBCFE8"/>
+                  <circle cx="16" cy="33" r="4" fill="#34D399"/>
+                </g>
+
+                <!-- โทรศัพท์ด้านขวา (หน้าแอปธนาคารสีฟ้า) -->
+                <g transform="translate(144, 88) rotate(18)">
+                  <rect x="0" y="0" width="30" height="42" rx="6" fill="#818CF8" stroke="#4F46E5" stroke-width="2"/>
+                  <rect x="3" y="4" width="24" height="34" rx="3" fill="#EFF6FF"/>
+                  <rect x="6" y="8" width="18" height="6" rx="2" fill="#60A5FA"/>
+                  <rect x="6" y="17" width="12" height="3" rx="1.5" fill="#BFDBFE"/>
+                  <rect x="6" y="22" width="18" height="3" rx="1.5" fill="#BFDBFE"/>
+                  <rect x="8" y="29" width="14" height="5" rx="2.5" fill="#3B82F6"/>
+                </g>
+              </svg>
+            </div>
+
+            <!-- ป้ายสถานะเล็กๆ ใต้ฐานมาสคอตขณะกำลังปริ้นใบเสร็จ QR -->
+            <div id="mascotPrinterPill" class="hidden absolute -bottom-1.5 z-30 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/95 border border-purple-200/85 shadow-[0_2px_8px_rgba(147,51,234,0.12)]">
+              <span id="printerStatusDot" class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+              <span id="printerStatusLabel" class="text-[9.5px] font-medium text-[#7D4B7A] tracking-wide">PRINTING QR...</span>
+            </div>
+          </div>
+
+          <!-- ลิ้นชักกระดาษใบเสร็จคิวอาร์โค้ดล็อกยอดที่ไหลออกมาจากใต้มาสคอต (ปรับขอบบนโค้งมนและเฟดรอยต่อให้เนียนกลืน) -->
+          <div id="receiptPrinterWrapper" class="hidden receipt-printer-mask relative z-10 -mt-7 pt-3.5 pb-1 w-full max-w-[294px] px-2.5 overflow-hidden">
+            <div id="receiptPaperEl" class="receipt-paper-smooth w-full rounded-t-[26px] border border-b-0 border-purple-100/85 pt-7 pb-3.5 px-4 text-center relative overflow-hidden">
+              <!-- เงาสัมผัสนุ่มๆ ใต้ตัวมาสคอตให้รอยต่อใบเสร็จดูกลมกลืน -->
+              <div class="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-40 h-5 bg-gradient-to-b from-purple-200/30 to-transparent rounded-b-full blur-[2px]"></div>
+
+              <!-- แถบสถานะบนหัวใบเสร็จ -->
+              <div class="flex items-center justify-between text-[10px] text-purple-900/55 pb-1.5 border-b border-dashed border-purple-200">
+                <span id="receiptShopLabel" class="font-medium text-[#8B3280]">ร้านโนริ • ใบแจ้งชำระเงิน</span>
+                <span id="receiptTimestamp">--:-- น.</span>
+              </div>
+
+              <!-- หัวข้อล็อกยอด + จำนวนเงินบนใบเสร็จ -->
+              <div class="mt-2.5">
+                <span id="receiptLockBadge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-50 border border-purple-200/80 text-[10px] font-medium text-[#8B3280]">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+                  QR ล็อกยอดชำระเงิน
+                </span>
+                <p id="receiptAmountText" class="font-title text-xl font-semibold text-[#8B3280] mt-1 tabular-nums">
+                  ฿ 150.00
+                </p>
+              </div>
+
+              <!-- กรอบคิวอาร์โค้ด -->
+              <div class="mt-2 mx-auto w-fit p-2 rounded-2xl bg-purple-50/50 border border-purple-200/70 shadow-inner">
+                <div id="qrCodeContainer" class="w-[144px] h-[144px] bg-white rounded-xl flex items-center justify-center p-1.5"></div>
+              </div>
+
+              <!-- รายละเอียดท้ายใบเสร็จ -->
+              <div class="mt-2.5 pt-2 border-t border-dashed border-pink-200 text-[11px] text-berry-900/75 space-y-0.5">
+                <p id="receiptAccountText" class="font-medium truncate">ชื่อบัญชี • ชื่อผู้รับเงิน</p>
+                <p id="receiptNoteText" class="text-berry-900/60 truncate">โน้ตสลิป: ใช้บริการร้านโนริ</p>
+                <p id="receiptDemoNotice" class="hidden text-[10px] text-amber-700 bg-amber-50 rounded-lg px-2 py-1 mt-1.5">
+- สร้างจากเบอร์ตัวอย่าง (Demo) กรุณาใส่เบอร์พร้อมเพย์จริงที่หลังบ้านก่อนใช้งานจริง
+                </p>
+              </div>
+
+              <!-- ปุ่มบันทึกภาพใบเสร็จ QR / พับเก็บ -->
+              <div class="mt-2.5 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onclick="downloadReceiptQr()"
+                  class="px-3 py-1.5 rounded-xl btn-berry text-white font-title text-xs font-medium shadow-sm flex items-center gap-1"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  บันทึกภาพ QR
+                </button>
+                <button
+                  type="button"
+                  onclick="hideReceiptPaper()"
+                  class="px-3 py-1.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-berry-800 font-title text-xs font-medium transition-all"
+                >
+                  พับเก็บ
+                </button>
+              </div>
+            </div>
+            <!-- ขอบหยักฉีกกระดาษใบเสร็จด้านล่าง (SVG) -->
+            <svg viewBox="0 0 360 12" preserveAspectRatio="none" class="w-full h-3 block drop-shadow-sm">
+              <path d="M0 0 H360 V2 L351 11 L342 2 L333 11 L324 2 L315 11 L306 2 L297 11 L288 2 L279 11 L270 2 L261 11 L252 2 L243 11 L234 2 L225 11 L216 2 L207 11 L198 2 L189 11 L180 2 L171 11 L162 2 L153 11 L144 2 L135 11 L126 2 L117 11 L108 2 L99 11 L90 2 L81 11 L72 2 L63 11 L54 2 L45 11 L36 2 L27 11 L18 2 L9 11 L0 2 Z" fill="#FFFFFF"/>
+            </svg>
+          </div>
+
+          <!-- 4. ชื่อบัญชี • ชื่อผู้รับเงิน (เอาออกกรอบ ให้เป็นข้อความสะอาดตามินิมอล) -->
+          <div class="relative z-20 mt-2 px-2 max-w-full">
+            <p id="displayAccountHolder" class="font-title text-[14.5px] sm:text-[15px] text-[#5E2747] text-center truncate">
+              ชื่อบัญชี • น.ส. โนริ น่ารัก (ตัวอย่าง)
+            </p>
+          </div>
+        </div>
+
+        <!-- 5. การ์ดหลัก "ยอดที่ต้องโอน" (ปรับขนาดให้เล็กลงกะทัดรัด มินิมอล สีพาสเทลโทนชมพูม่วง) -->
+        <section class="relative w-full max-w-[328px] mt-2.5">
+          <div class="relative z-20 w-full rounded-[22px] amount-card-bg shadow-[0_10px_24px_-10px_rgba(168,85,247,0.22)] pt-2.5 pb-3 px-4 text-center border border-purple-200/75">
+            <!-- หัวข้อยอดที่ต้องโอน -->
+            <p class="font-title text-[#7E3A7A] text-[13px] sm:text-[13.5px] font-medium tracking-wide">
+              ยอดที่ต้องโอน
+            </p>
+
+            <!-- กล่องยอดเงินสีขาวทรงกะทัดรัดมินิมอล -->
+            <div class="relative mt-1.5 bg-white/95 rounded-xl py-1.5 px-3 border border-purple-100/90 shadow-[inset_0_1px_3px_rgba(147,51,234,0.06)] flex items-center justify-center gap-1">
+              <span class="font-title text-[#9D3B8D] text-[22px] sm:text-[24px] font-semibold leading-none">฿</span>
+
+              <!-- แสดงตัวเลขเมื่อถูกล็อกยอดแล้ว -->
+              <span id="displayAmountLocked" class="hidden font-title text-[#8B3280] text-[24px] sm:text-[27px] font-semibold leading-none tracking-tight tabular-nums">
+                150.00
+              </span>
+
+              <!-- ช่องกรอกยอดเอง (ลูกค้าพิมพ์ยอดและกดล็อกเองได้เมื่อร้านไม่ได้ส่งลิงก์ล็อกยอดมา) -->
+              <input
+                id="customerAmountInput"
+                type="number"
+                step="0.01"
+                min="1"
+                value="150.00"
+                placeholder="0.00"
+                oninput="handleCustomerAmountInput(this.value)"
+                onkeydown="if(event.key==='Enter'){ event.preventDefault(); handleLockButtonClick(); }"
+                class="w-32 text-center font-title text-[#8B3280] text-[24px] sm:text-[27px] font-semibold leading-none bg-purple-50/60 rounded-lg px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-purple-300/70"
+                aria-label="กรอกยอดที่ต้องโอน"
+              />
+            </div>
+
+            <!-- ข้อความแนะนำสั้นๆ เมื่อลูกค้าสามารถกรอกยอดเองได้ -->
+            <p id="amountHintText" class="mt-1.5 text-[10.5px] text-[#7D4B7A]/80 leading-snug">
+              พิมพ์ยอดเงินที่ต้องการแล้วกดปุ่ม <strong>ล็อกยอด</strong> เพื่อปริ้นใบเสร็จ QR
+            </p>
+
+            <!-- ปุ่มล็อกยอด / ปริ้นใบเสร็จ QR / แก้ไขยอด -->
+            <div class="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+              <button
+                id="lockActionBtn"
+                type="button"
+                onclick="handleLockButtonClick()"
+                class="inline-flex items-center gap-1.5 px-4 py-1 rounded-full bg-white/95 hover:bg-white text-[#8B3280] border border-purple-200/80 font-title text-[12.5px] font-medium shadow-sm transition-all active:scale-95"
+              >
+                <svg id="lockIconSvg" class="w-3.5 h-3.5 text-[#A855B8]" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24">
+                  <rect x="5" y="11" width="14" height="10" rx="2.5"></rect>
+                  <path d="M8 11V7a4 4 0 018 0v4"></path>
+                </svg>
+                <span id="lockStatusText">ล็อกยอด &amp; ปริ้น QR</span>
+              </button>
+
+              <!-- ปุ่มปลดล็อกเพื่อแก้ยอดใหม่ (โชว์เฉพาะกรณีที่ลูกค้าเป็นคนล็อกยอดเอง ไม่ใช่ลิงก์จากร้าน) -->
+              <button
+                id="unlockSelfBtn"
+                type="button"
+                onclick="handleUnlockSelf()"
+                class="hidden inline-flex items-center gap-1 px-3 py-1 rounded-full bg-purple-200/45 hover:bg-purple-200/70 text-[#6F326C] border border-purple-300/60 font-title text-[11.5px] transition-all active:scale-95"
+              >
+                แก้ยอด
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. เส้นคั่นหัวข้อ "ช่องทางโอนเงิน" -->
+        <div class="w-full mt-5 mb-3.5 flex items-center gap-3 px-1">
+          <div class="flex-1 h-[2px] rounded-full bg-gradient-to-r from-transparent via-pink-300 to-pink-300"></div>
+          <h2 class="font-title text-[19px] font-medium text-[#562441] whitespace-nowrap">ช่องทางโอนเงิน</h2>
+          <div class="flex-1 h-[2px] rounded-full bg-gradient-to-l from-transparent via-pink-300 to-pink-300"></div>
+        </div>
+
+        <!-- 7. รายการการ์ดช่องทางโอนเงิน + โน้ตสลิป + รายละเอียด (Render จาก State เพื่อให้หลังบ้านแก้แล้วเปลี่ยนทันที) -->
+        <div id="paymentCardsContainer" class="w-full flex flex-col gap-3">
+          <!-- จะถูกสร้างโดย JavaScript -->
+        </div>
+
+        <!-- 8. ปุ่มเสริมสำหรับลูกค้า (คงเฉพาะปุ่มติดต่อแชทร้านค้าตามที่ขอ) -->
+        <div class="w-full mt-4 pt-3 border-t border-pink-200/70">
+          <button
+            type="button"
+            onclick="openChatOrQrModal()"
+            class="w-full py-3 px-4 rounded-2xl bg-white hover:bg-pink-50 text-berry-700 border-2 border-pink-200 font-title text-[15px] font-medium shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95"
+          >
+            <svg class="w-5 h-5 text-berry-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            ติดต่อแชทร้านค้า
+          </button>
+        </div>
+
+        <!-- หมายเหตุแจ้งว่าเป็นโหมด Demo -->
+        <p class="mt-3 text-[11px] text-center text-berry-900/55 leading-relaxed">
+- ข้อมูลเลขบัญชีเริ่มต้นเป็น <strong>ข้อมูลตัวอย่าง (Demo)</strong> สามารถแก้ไขและทดลองใช้งานได้ในเมนู <strong>หลังบ้านร้านค้า</strong>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== มุมมองที่ 2: ระบบหลังบ้านร้านค้า (Admin Backoffice - Demo) ==================== -->
+  <main id="adminView" class="hidden w-full max-w-6xl mx-auto px-3 sm:px-6 py-5 sm:py-8">
+    <!-- แบนเนอร์แจ้งเตือนสถานะฐานข้อมูลอย่างตรงไปตรงมา -->
+    <div class="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+      <div class="flex items-start gap-3">
+        <div class="p-2 rounded-xl bg-amber-100 text-amber-700 shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div>
+          <h2 class="font-title text-base font-medium text-amber-900">ระบบหลังบ้านร้านโนริ — โหมดทดลองใช้งาน (Demo Mode)</h2>
+          <p class="text-xs sm:text-sm text-amber-800/90 mt-0.5">
+            ยังไม่ได้เชื่อมต่อฐานข้อมูลจริง (Database) การแก้ไขและรายการแจ้งโอนทั้งหมดจะถูกจำลองไว้ในเบราว์เซอร์เครื่องนี้เท่านั้น (<code class="px-1 py-0.5 bg-amber-100 rounded text-xs">localStorage</code>) เพื่อทดสอบระบบก่อนเชื่อมฐานข้อมูลจริง
+          </p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 shrink-0">
+        <button type="button" onclick="switchView('customer')" class="px-3.5 py-2 rounded-xl btn-berry text-white text-xs font-medium shadow-sm flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          กลับหน้าลูกค้า
+        </button>
+        <button type="button" onclick="openResetConfirmModal()" class="px-3.5 py-2 rounded-xl bg-white hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-medium transition-all">
+          รีเซ็ตกลับเป็นข้อมูลตัวอย่าง
+        </button>
+      </div>
+    </div>
+
+    <!-- แถบเมนูย่อยของหลังบ้าน -->
+    <div class="flex flex-wrap gap-2 mb-6">
+      <button onclick="switchAdminTab('settings')" id="adminTab-settings" class="admin-subtab px-4 py-2.5 rounded-2xl text-sm font-medium bg-berry-600 text-white shadow-sm flex items-center gap-2 transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        ตั้งค่าหน้าชำระเงิน
+      </button>
+      <button onclick="switchAdminTab('linkgen')" id="adminTab-linkgen" class="admin-subtab px-4 py-2.5 rounded-2xl text-sm font-medium bg-white text-berry-900 border border-pink-200 hover:bg-pink-50 flex items-center gap-2 transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        สร้างลิงก์เรียกเก็บเงิน
+      </button>
+      <button onclick="switchAdminTab('slips')" id="adminTab-slips" class="admin-subtab px-4 py-2.5 rounded-2xl text-sm font-medium bg-white text-berry-900 border border-pink-200 hover:bg-pink-50 flex items-center gap-2 transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        รายการแจ้งโอน (Demo)
+        <span id="slipCountTabBadge" class="px-2 py-0.5 rounded-full text-xs bg-pink-100 text-berry-700 font-semibold">0</span>
+      </button>
+    </div>
+
+    <!-- ===== แท็บ 1: ตั้งค่าหน้าชำระเงิน ===== -->
+    <div id="adminPanel-settings" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- คอลัมน์ซ้าย: ข้อมูลร้าน ยอดเงิน และภาพมาสคอต -->
+      <div class="lg:col-span-6 space-y-5">
+        <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-card-soft border border-pink-100">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-title text-lg font-medium text-berry-900">ข้อมูลร้านค้าและยอดโอน</h3>
+            <span id="dataOriginBadge" class="px-2.5 py-1 rounded-full text-[11px] font-medium bg-pink-100 text-berry-700">ข้อมูลตัวอย่างเริ่มต้น</span>
+          </div>
+
+          <div class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label class="block text-xs font-medium text-berry-900/80 mb-1">ชื่อร้าน (แถบด้านบน)</label>
+                <input id="inputShopName" type="text" class="w-full px-3.5 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-berry-900/80 mb-1">คำโปรยเล็กๆ ใต้ชื่อร้าน</label>
+                <input id="inputShopTagline" type="text" class="w-full px-3.5 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-berry-900/80 mb-1">ชื่อบัญชี • ชื่อผู้รับเงิน</label>
+              <input id="inputAccountHolder" type="text" class="w-full px-3.5 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
+              <div>
+                <label class="block text-xs font-medium text-berry-900/80 mb-1">ยอดที่ต้องโอน (บาท)</label>
+                <input id="inputAmount" type="number" step="0.01" min="0" class="w-full px-3.5 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm font-semibold text-berry-700" />
+              </div>
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-pink-50 border border-pink-200">
+                <span class="text-xs font-medium text-berry-900">ล็อกยอดโอน</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input id="inputLockAmount" type="checkbox" class="sr-only peer" />
+                  <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-berry-600"></div>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-berry-900/80 mb-1">โน้ตสลิป (ข้อความที่ลูกค้าคัดลอก)</label>
+              <input id="inputSlipNote" type="text" class="w-full px-3.5 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-berry-900/80 mb-1">ข้อความรายละเอียดด้านล่าง</label>
+              <input id="inputDetails" type="text" class="w-full px-3.5 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-berry-900/80 mb-1">ลิงก์แชทร้านค้า (LINE / FB / IG)</label>
+              <input id="inputChatUrl" type="text" placeholder="เช่น https://line.me/ti/p/@norishop" class="w-full px-3.5 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm" />
+            </div>
+          </div>
+        </div>
+
+        <!-- อัปโหลดรูปมาสคอตจริงของร้าน -->
+        <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-card-soft border border-pink-100">
+          <h3 class="font-title text-lg font-medium text-berry-900 mb-1">รูปมาสคอตหน้าร้าน</h3>
+          <p class="text-xs text-berry-900/65 mb-3">
+            คุณสามารถอัปโหลดไฟล์รูปมาสคอตต้นฉบับ (PNG พื้นหลังโปร่งใสจะสวยที่สุด) เพื่อทดลองแสดงแทนภาพวาด SVG ได้ทันที
+          </p>
+          <div class="flex flex-wrap items-center gap-3">
+            <label class="cursor-pointer px-4 py-2 rounded-xl bg-pink-100 hover:bg-pink-200 text-berry-700 text-xs font-medium transition-all flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              เลือกไฟล์รูปมาสคอต
+              <input id="mascotFileInput" type="file" accept="image/*" onchange="handleMascotUpload(event)" class="hidden" />
+            </label>
+            <button type="button" onclick="clearCustomMascot()" class="px-3.5 py-2 rounded-xl border border-pink-200 text-xs text-berry-900/75 hover:bg-pink-50">
+              ใช้ภาพมาสคอตเริ่มต้นของร้าน
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- คอลัมน์ขวา: จัดการช่องทางโอนเงิน -->
+      <div class="lg:col-span-6 space-y-5">
+        <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-card-soft border border-pink-100">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="font-title text-lg font-medium text-berry-900">ช่องทางโอนเงิน</h3>
+              <p class="text-xs text-berry-900/60">แก้ไขเลขบัญชี หรือเปิด-ปิดช่องทางที่แสดงหน้าลูกค้า</p>
+            </div>
+            <button type="button" onclick="addNewPaymentChannel()" class="px-3.5 py-2 rounded-xl bg-pink-100 hover:bg-pink-200 text-berry-700 text-xs font-medium flex items-center gap-1 transition-all">
+              + เพิ่มช่องทาง
+            </button>
+          </div>
+
+          <div id="adminChannelsList" class="space-y-3">
+            <!-- Render โดย JS -->
+          </div>
+        </div>
+
+        <!-- ปุ่มบันทึกการตั้งค่า (แจ้งชัดว่าบันทึกใน Demo Browser เท่านั้น) -->
+        <div class="bg-gradient-to-r from-berry-50 to-pink-50 rounded-3xl p-5 border border-pink-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="text-xs text-berry-900/80">
+            <strong class="text-berry-700 block text-sm font-title">อัปเดตหน้าลูกค้า (โหมด Demo)</strong>
+            การเปลี่ยนแปลงจะแสดงผลบนหน้าลูกค้าทันที (เก็บชั่วคราวในเบราว์เซอร์ ยังไม่เชื่อมฐานข้อมูลจริง)
+          </div>
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <button type="button" onclick="saveAdminSettings()" class="flex-1 sm:flex-none px-6 py-3 rounded-2xl btn-berry text-white font-title text-sm font-medium shadow-btn-berry">
+              บันทึกและดูหน้าลูกค้า
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== แท็บ 2: สร้างลิงก์เรียกเก็บเงินเฉพาะบิล ===== -->
+    <div id="adminPanel-linkgen" class="hidden max-w-2xl mx-auto">
+      <div class="bg-white rounded-3xl p-6 shadow-card-soft border border-pink-100 space-y-4">
+        <div>
+          <h3 class="font-title text-lg font-medium text-berry-900">สร้างลิงก์ชำระเงินเฉพาะลูกค้า</h3>
+          <p class="text-xs text-berry-900/65 mt-0.5">
+            ระบุยอดและโน้ตสลิปของออเดอร์ ระบบจะสร้างลิงก์ที่เมื่อเปิดแล้วหน้าชำระเงินจะล็อกยอดและเติมโน้ตให้อัตโนมัติ
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-berry-900/80 mb-1">ยอดเรียกเก็บ (บาท)</label>
+            <input id="genAmount" type="number" step="0.01" value="290.00" oninput="updateGeneratedLink()" class="w-full px-3.5 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm font-semibold text-berry-700" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-berry-900/80 mb-1">โน้ตสลิปเฉพาะออเดอร์</label>
+            <input id="genNote" type="text" value="ออเดอร์ #NR-042 คุณพลอย" oninput="updateGeneratedLink()" class="w-full px-3.5 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm" />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between p-3 rounded-xl bg-pink-50 border border-pink-200">
+          <span class="text-xs font-medium text-berry-900">ล็อกยอดไม่ให้ลูกค้าแก้ไข</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input id="genLock" type="checkbox" checked onchange="updateGeneratedLink()" class="sr-only peer" />
+            <div class="w-11 h-6 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-berry-600"></div>
+          </label>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-berry-50/70 border border-pink-200">
+          <label class="block text-xs font-medium text-berry-800 mb-1.5">ลิงก์พร้อมส่งให้ลูกค้า (URL Parameter)</label>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input id="generatedLinkOutput" type="text" readonly class="flex-1 px-3 py-2 rounded-xl bg-white border border-pink-200 text-xs text-berry-900/80 select-all" />
+            <button type="button" onclick="copyTextValue(document.getElementById('generatedLinkOutput').value, 'คัดลอกลิงก์เรียกเก็บเงินแล้ว')" class="px-4 py-2 rounded-xl btn-berry text-white text-xs font-medium shrink-0">
+              คัดลอกลิงก์
+            </button>
+          </div>
+          <button type="button" onclick="applyGeneratedBillPreview()" class="mt-3 w-full py-2.5 rounded-xl bg-white hover:bg-pink-100 text-berry-700 border border-pink-300 text-xs font-medium transition-all">
+            ทดลองเปิดดูบิลนี้ในหน้าลูกค้าทันที
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== แท็บ 3: รายการแจ้งโอน / ตรวจสลิป (แยกข้อมูลตัวอย่างกับข้อมูลที่กดส่งเองชัดเจน) ===== -->
+    <div id="adminPanel-slips" class="hidden space-y-5">
+      <!-- สรุปยอดสถิติ Demo -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-white rounded-2xl p-4 border border-pink-100 shadow-sm">
+          <p class="text-xs text-berry-900/60">รายการทั้งหมด (Demo)</p>
+          <p id="statTotalCount" class="font-title text-2xl font-semibold text-berry-900 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-amber-100 shadow-sm">
+          <p class="text-xs text-amber-700">รอตรวจสอบ</p>
+          <p id="statPendingCount" class="font-title text-2xl font-semibold text-amber-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-emerald-100 shadow-sm">
+          <p class="text-xs text-emerald-700">ยืนยันแล้ว</p>
+          <p id="statApprovedCount" class="font-title text-2xl font-semibold text-emerald-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-pink-100 shadow-sm">
+          <p class="text-xs text-berry-700">ยอดรวมที่ยืนยัน (Demo)</p>
+          <p id="statApprovedSum" class="font-title text-2xl font-semibold text-berry-600 mt-1">฿0.00</p>
+        </div>
+      </div>
+
+      <!-- ตาราง/การ์ดรายการแจ้งโอน -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-card-soft border border-pink-100">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 class="font-title text-lg font-medium text-berry-900">รายการแจ้งโอนเงิน</h3>
+            <p class="text-xs text-berry-900/65">
+              แยกป้ายกำกับชัดเจนระหว่าง <span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-medium">ข้อมูลตัวอย่าง</span> และ <span class="px-1.5 py-0.5 rounded bg-pink-100 text-berry-700 font-medium">ส่งจากฟอร์มทดสอบในเครื่องนี้</span>
+            </p>
+          </div>
+          <button type="button" onclick="switchView('customer'); setTimeout(openSlipModal, 150);" class="px-3.5 py-2 rounded-xl bg-pink-100 hover:bg-pink-200 text-berry-700 text-xs font-medium">
+            + ทดลองส่งสลิปจากหน้าลูกค้า
+          </button>
+        </div>
+
+        <div id="slipsListContainer" class="space-y-3">
+          <!-- Render โดย JS -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== MODAL: แจ้งโอนเงิน / แนบสลิป (Demo) ==================== -->
+  <div id="slipModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-berry-900/45 backdrop-blur-sm">
+    <div class="w-full max-w-md bg-white rounded-[30px] shadow-2xl border border-pink-100 overflow-hidden animate-pop max-h-[90vh] flex flex-col">
+      <div class="px-6 py-4 bg-gradient-to-r from-[#F05E92] to-[#C8255C] text-white flex items-center justify-between">
+        <div>
+          <h3 class="font-title text-lg font-medium">แจ้งโอนเงิน / แนบสลิป</h3>
+          <p class="text-[11px] text-pink-100">โหมดทดลอง (ข้อมูลจำลองในเครื่อง ยังไม่ส่งเข้าฐานข้อมูลจริง)</p>
+        </div>
+        <button type="button" onclick="closeModal('slipModal')" class="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form id="slipForm" onsubmit="submitDemoSlip(event)" class="p-5 sm:p-6 space-y-4 overflow-y-auto">
+        <div class="p-3 rounded-2xl bg-pink-50 border border-pink-200 flex items-center justify-between">
+          <span class="text-xs text-berry-900/80">ยอดที่แจ้งโอน</span>
+          <span id="modalSlipAmount" class="font-title text-xl font-semibold text-berry-600">฿ 150.00</span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-berry-900/80 mb-1">ชื่อลูกค้า / ชื่อแชท *</label>
+          <input id="slipCustomerName" type="text" required placeholder="เช่น คุณมิ้นท์ (LINE: mint.n)" class="w-full px-3.5 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-berry-900/80 mb-1">ช่องทางที่โอน *</label>
+          <select id="slipChannelSelect" class="w-full px-3.5 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm bg-white">
+            <!-- เติมจากช่องทางที่เปิดใช้งาน -->
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-berry-900/80 mb-1">แนบภาพสลิป (แสดงตัวอย่างบนเบราว์เซอร์)</label>
+          <label class="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-pink-300 rounded-2xl cursor-pointer bg-pink-50/40 hover:bg-pink-50 transition-all overflow-hidden relative">
+            <div id="slipUploadPlaceholder" class="flex flex-col items-center justify-center text-center p-3">
+              <svg class="w-7 h-7 text-pink-400 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <span class="text-xs text-berry-700 font-medium">แตะเพื่อเลือกรูปสลิป (ไม่บังคับในโหมดทดสอบ)</span>
+            </div>
+            <img id="slipPreviewImg" src="" alt="ตัวอย่างสลิป" class="hidden w-full h-full object-contain p-1" />
+            <input id="slipFileInput" type="file" accept="image/*" onchange="handleSlipImagePreview(event)" class="hidden" />
+          </label>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-berry-900/80 mb-1">หมายเหตุ / โน้ตสลิป</label>
+          <input id="slipCustomerNote" type="text" class="w-full px-3.5 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm" />
+        </div>
+
+        <button type="submit" class="w-full py-3 rounded-2xl btn-berry text-white font-title text-base font-medium shadow-btn-berry">
+          ส่งแจ้งโอน (จำลองเข้าหลังบ้าน Demo)
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: ข้อมูลปุ่มล็อกยอด / ช่องทางแชท / ยืนยันรีเซ็ต ==================== -->
+  <div id="infoModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-berry-900/45 backdrop-blur-sm">
+    <div class="w-full max-w-sm bg-white rounded-[28px] shadow-2xl border border-pink-100 p-6 text-center animate-pop">
+      <div id="infoModalIcon" class="w-14 h-14 mx-auto rounded-full bg-pink-100 text-berry-600 flex items-center justify-center mb-3">
+        <!-- Icon -->
+      </div>
+      <h3 id="infoModalTitle" class="font-title text-lg font-medium text-berry-900">หัวข้อ</h3>
+      <p id="infoModalBody" class="text-sm text-berry-900/75 mt-2 leading-relaxed"></p>
+      <div id="infoModalActions" class="mt-5 flex flex-col sm:flex-row gap-2 justify-center">
+        <!-- ปุ่ม -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: บันทึกภาพใบเสร็จ QR (สำหรับมือถือ/iPad หรือกรณีดาวน์โหลดถูกจำกัด) ==================== -->
+  <div id="qrSaveModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-berry-900/50 backdrop-blur-sm">
+    <div class="w-full max-w-sm bg-white rounded-[28px] shadow-2xl border border-pink-100 p-5 text-center animate-pop max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-title text-base font-medium text-berry-900">บันทึกภาพใบเสร็จ QR</h3>
+        <button type="button" onclick="closeModal('qrSaveModal')" class="p-1.5 rounded-full bg-pink-50 hover:bg-pink-100 text-berry-700" aria-label="ปิดหน้าต่าง">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="bg-pink-50/70 rounded-2xl p-2.5 border border-pink-100">
+        <img id="qrSavePreviewImg" src="" alt="ภาพใบเสร็จคิวอาร์โค้ดสำหรับบันทึก" class="w-full max-w-[260px] mx-auto rounded-xl shadow-sm select-auto" />
+      </div>
+
+      <p class="mt-3 text-xs text-berry-900/75 leading-relaxed">
+        กดปุ่ม <strong>ดาวน์โหลดไฟล์ PNG</strong> ด้านล่าง หรือบน iPad / iPhone สามารถ <strong>แตะค้างที่ภาพด้านบนแล้วเลือก "บันทึกรูปภาพ"</strong> เพื่อเก็บลงอัลบั้มได้ทันที
+      </p>
+
+      <div class="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+        <button type="button" id="qrDirectDownloadBtn" onclick="triggerPendingQrBlobDownload()" class="px-4 py-2.5 rounded-2xl btn-berry text-white font-title text-xs sm:text-sm font-medium shadow-btn-berry">
+          ดาวน์โหลดไฟล์ PNG
+        </button>
+        <button type="button" onclick="closeModal('qrSaveModal')" class="px-4 py-2.5 rounded-2xl bg-pink-50 hover:bg-pink-100 text-berry-900 font-title text-xs sm:text-sm font-medium">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TOAST NOTIFICATION ==================== -->
+  <div id="toastContainer" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2 w-[90%] max-w-sm"></div>
+
+  <script>
+    /* ============================================================================
+1. ข้อมูลตัวอย่างเริ่มต้น (Sample Data - แยกชัดเจนจากข้อมูลจริง)
+       ============================================================================ */
+    const STORAGE_KEY_CONFIG = 'nori_demo_config_v2';
+    const STORAGE_KEY_SLIPS  = 'nori_demo_slips_v1';
+    const DEFAULT_MASCOT_URL = 'https://i.postimg.cc/9MLbKGrT/mi-m-ch-x-64-20261119072808.png';
+    const DEFAULT_LOGO_URL   = 'https://i.postimg.cc/SKpgMSB7/mi-m-ch-x-64-20261119072840.png';
+
+    const DEFAULT_SAMPLE_CONFIG = {
+      isModified: false,
+      shopName: 'ร้านโนริ',
+      shopTagline: 'ยินดีต้อนรับค่ะ • โอนง่าย ตรวจไว ใจดี',
+      accountHolder: 'ชื่อบัญชี • ชื่อผู้รับเงิน',
+      amount: 150.00,
+      lockAmount: false, // ค่าเริ่มต้นเปิดให้ลูกค้ากรอกยอดและกดล็อกเองได้ หากร้านไม่ได้ส่งลิงก์ยอดเงินมา
+      slipNote: 'ใช้บริการร้านโนริ',
+      detailsText: 'โอนแล้วส่งสลิปให้ร้านทางแชท',
+      chatUrl: 'https://line.me/ti/p/@norishop-demo',
+      customMascotDataUrl: '',
+      channels: [
+        {
+          id: 'ch-kbank',
+          type: 'kbank',
+          name: 'ธนาคารกสิกรไทย',
+          number: '000-0-00000-0',
+          enabled: true
+        },
+        {
+          id: 'ch-truemoney',
+          type: 'truemoney',
+          name: 'ทรูมันนี่ วอลเล็ท',
+          number: '000-000-0000',
+          enabled: true
+        }
+      ]
+    };
+
+    const DEFAULT_SAMPLE_SLIPS = [
+      {
+        id: 'DEMO-001',
+        origin: 'sample', // แยกชัดเจนว่าเป็นข้อมูลตัวอย่าง
+        customerName: 'คุณข้าวหอม (ข้อมูลตัวอย่าง)',
+        amount: 150.00,
+        channel: 'ธนาคารกสิกรไทย',
+        note: 'ใช้บริการร้านโนริ',
+        status: 'approved',
+        createdAt: 'วันนี้ 10:15 น.',
+        slipPreview: ''
+      },
+      {
+        id: 'DEMO-002',
+        origin: 'sample',
+        customerName: 'คุณใบเตย (ข้อมูลตัวอย่าง)',
+        amount: 320.00,
+        channel: 'ทรูมันนี่ วอลเล็ท',
+        note: 'ใช้บริการร้านโนริ #02',
+        status: 'pending',
+        createdAt: 'วันนี้ 11:40 น.',
+        slipPreview: ''
+      }
+    ];
+
+    /* สถานะปัจจุบันในหน่วยความจำ */
+    let isStoreBillLocked = false; // true เมื่อเปิดจากลิงก์เรียกเก็บเงินที่ร้านล็อกยอดไว้ หรือร้านเปิดล็อกยอดจากหลังบ้าน
+    let isOpenedFromPaymentLink = false; // true เมื่อลูกค้าเปิดเว็บจากลิงก์ยอดเงิน (?amount=...) เพื่อให้ปริ้น QR อัตโนมัติทันที
+    let isCustomerSelfLocked = false; // true เมื่อลูกค้าใส่ยอดแล้วกดปุ่มล็อกยอดด้วยตนเอง
+    let isVinylSpinning = false; // จะเริ่มหมุนและเล่นเพลงจริงอัตโนมัติทันทีเมื่อแตะหน้าจอครั้งแรก
+    let userPausedMusic = false;
+    let musicStarted = false;
+    let toneLoop = null;
+    let tonePadLoop = null;
+    let toneSynth = null;
+    let tonePadSynth = null;
+    let appConfig = loadConfig();
+    let appSlips = loadSlips();
+    let activeSlipPreviewData = '';
+    let pendingQrDownloadBlob = null;
+    let pendingQrDownloadFileName = 'qr-nori.png';
+
+    /* รายชื่อธนาคารในประเทศไทยครบทุกธนาคาร + อีวอลเล็ท สำหรับหลังบ้าน */
+    const THAI_BANKS_LIST = [
+      { code: 'kbank',     label: 'ธนาคารกสิกรไทย (KBANK)',             short: 'KBANK', bg: '#138F2D' },
+      { code: 'scb',       label: 'ธนาคารไทยพาณิชย์ (SCB)',             short: 'SCB',   bg: '#4E2A84' },
+      { code: 'bbl',       label: 'ธนาคารกรุงเทพ (BBL)',                short: 'BBL',   bg: '#1E4598' },
+      { code: 'ktb',       label: 'ธนาคารกรุงไทย (KTB)',                short: 'KTB',   bg: '#1BA5E0' },
+      { code: 'bay',       label: 'ธนาคารกรุงศรีอยุธยา (BAY)',           short: 'BAY',   bg: '#FEC43B', darkText: true },
+      { code: 'ttb',       label: 'ธนาคารทหารไทยธนชาต (ttb)',           short: 'ttb',   bg: '#0050F0' },
+      { code: 'gsb',       label: 'ธนาคารออมสิน (GSB)',                 short: 'GSB',   bg: '#EB198D' },
+      { code: 'baac',      label: 'ธนาคารเพื่อการเกษตรฯ (ธ.ก.ส.)',      short: 'BAAC',  bg: '#4B9B1D' },
+      { code: 'ghb',       label: 'ธนาคารอาคารสงเคราะห์ (ธอส.)',        short: 'GHB',   bg: '#F58220' },
+      { code: 'uob',       label: 'ธนาคารยูโอบี (UOB)',                 short: 'UOB',   bg: '#0B3979' },
+      { code: 'cimb',      label: 'ธนาคารซีไอเอ็มบี ไทย (CIMB)',        short: 'CIMB',  bg: '#7E0000' },
+      { code: 'lhbank',    label: 'ธนาคารแลนด์ แอนด์ เฮ้าส์ (LH Bank)', short: 'LH',    bg: '#6D6E71' },
+      { code: 'kkp',       label: 'ธนาคารเกียรตินาคินภัทร (KKP)',       short: 'KKP',   bg: '#594F8D' },
+      { code: 'tisco',     label: 'ธนาคารทิสโก้ (TISCO)',               short: 'TISCO', bg: '#12549F' },
+      { code: 'icbc',      label: 'ธนาคารไอซีบีซี (ICBC)',              short: 'ICBC',  bg: '#C50F1F' },
+      { code: 'ibank',     label: 'ธนาคารอิสลามแห่งประเทศไทย (ibank)',  short: 'iBank', bg: '#136B36' },
+      { code: 'truemoney', label: 'ทรูมันนี่ วอลเล็ท (TrueMoney)',      short: 'TMN',   bg: '#F37021' },
+      { code: 'promptpay', label: 'พร้อมเพย์ (PromptPay)',              short: 'PP',    bg: '#113F83' },
+      { code: 'bank',      label: 'ธนาคาร / ช่องทางอื่นๆ',               short: 'BANK',  bg: '#C8255C' }
+    ];
+
+    /* โหลดค่าจาก localStorage (ถ้ามี) พร้อมตรวจจับ URL Query Parameters */
+    function loadConfig() {
+      let cfg = JSON.parse(JSON.stringify(DEFAULT_SAMPLE_CONFIG));
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_CONFIG);
+        if (saved) {
+          cfg = { ...cfg, ...JSON.parse(saved) };
+        }
+      } catch (e) {
+        console.warn('ไม่สามารถอ่าน localStorage ได้ ใช้ค่าเริ่มต้นแทน', e);
+      }
+
+      isStoreBillLocked = !!cfg.lockAmount;
+
+      // รองรับลิงก์เรียกเก็บเงินเฉพาะบิล เช่น ?amount=290&note=ออเดอร์01&lock=1
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('amount')) {
+          const parsedAmount = parseFloat(params.get('amount'));
+          if (!isNaN(parsedAmount) && parsedAmount > 0) {
+            cfg.amount = parsedAmount;
+            isOpenedFromPaymentLink = true;
+            // ถ้ามีลิงก์ยอดเงินส่งมาและไม่ได้กำหนด lock=0 ให้ถือว่าร้านล็อกยอดให้ลูกค้า
+            const shouldLock = params.get('lock') !== '0';
+            cfg.lockAmount = shouldLock;
+            isStoreBillLocked = shouldLock;
+          }
+        }
+        if (params.has('note')) {
+          cfg.slipNote = params.get('note');
+        }
+        if (params.has('lock') && !params.has('amount')) {
+          cfg.lockAmount = params.get('lock') !== '0';
+          isStoreBillLocked = cfg.lockAmount;
+        }
+      } catch (e) {
+        console.warn('อ่าน URL params ไม่สำเร็จ', e);
+      }
+      return cfg;
+    }
+
+    function loadSlips() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_SLIPS);
+        if (saved) return JSON.parse(saved);
+      } catch (e) {
+        console.warn('ไม่สามารถอ่านรายการสลิป Demo ได้', e);
+      }
+      return JSON.parse(JSON.stringify(DEFAULT_SAMPLE_SLIPS));
+    }
+
+    function persistDemoConfig() {
+      try {
+        localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(appConfig));
+      } catch (e) {
+        showToast('ไม่สามารถบันทึกในเบราว์เซอร์ได้ (พื้นที่เต็มหรือโหมดไม่ระบุตัวตน)', 'error');
+      }
+    }
+
+    function persistDemoSlips() {
+      try {
+        localStorage.setItem(STORAGE_KEY_SLIPS, JSON.stringify(appSlips));
+      } catch (e) {
+        console.warn('ไม่สามารถบันทึกรายการสลิปลง localStorage ได้', e);
+      }
+    }
+
+    /* ============================================================================
+2. ฟังก์ชันช่วยฟอร์แมตตัวเลขและไอคอน SVG ของแต่ละช่องทาง
+       ============================================================================ */
+    function formatMoney(num) {
+      const val = parseFloat(num);
+      if (isNaN(val)) return '0.00';
+      return val.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function getChannelIconSvg(type) {
+      switch (type) {
+        case 'kbank':
+          // โลโก้สไตล์กสิกรไทย (ใบไม้สีเขียวในวงแหวนแดง)
+          return `
+            <div class="w-11 h-11 rounded-full flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 48 48" class="w-10 h-10">
+                <circle cx="24" cy="24" r="20" fill="#FFFFFF" stroke="#E02424" stroke-width="3.2"/>
+                <path d="M24 37V22" stroke="#138F2D" stroke-width="3.5" stroke-linecap="round"/>
+                <path d="M24 27C17 26 14 21 15 15C21 15 24 20 24 27Z" fill="#138F2D"/>
+                <path d="M24 27C31 26 34 21 33 15C27 15 24 20 24 27Z" fill="#18A836"/>
+                <circle cx="24" cy="14" r="2.2" fill="#E02424"/>
+              </svg>
+            </div>`;
+        case 'truemoney':
+          // โลโก้สไตล์ TrueMoney Wallet (ตัว W สีแดง-ส้ม-เหลือง)
+          return `
+            <div class="w-11 h-11 rounded-full flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 48 48" class="w-10 h-10">
+                <path d="M6 14L14 35C14.8 37 17.5 37 18.4 35L23 23L17 14H6Z" fill="#E52329"/>
+                <path d="M18 14L25 35C25.8 37 28.5 37 29.4 35L35 19L29 14H18Z" fill="#FDB813"/>
+                <path d="M27 35L35 14H43L34 35C33.1 37 28 37 27 35Z" fill="#F37021"/>
+              </svg>
+            </div>`;
+        case 'promptpay':
+          return `
+            <div class="w-11 h-11 rounded-2xl bg-sky-50 border border-sky-200 flex items-center justify-center shrink-0 text-sky-700 font-bold text-xs">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 3h2m2 0h2m-6 3h6"/>
+              </svg>
+            </div>`;
+        case 'bank':
+          return `
+            <div class="w-11 h-11 rounded-full bg-pink-100 text-berry-600 flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M3 18h18M12 3L2 8h20L12 3z"/>
+              </svg>
+            </div>`;
+        default: {
+          const bankMeta = THAI_BANKS_LIST.find(b => b.code === type);
+          if (bankMeta) {
+            const textColor = bankMeta.darkText ? '#4A3100' : '#FFFFFF';
+            const fontSize = bankMeta.short.length >= 5 ? 'text-[10px]' : (bankMeta.short.length === 4 ? 'text-[11px]' : 'text-xs');
+            return `
+              <div class="w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-title ${fontSize} font-semibold shadow-sm border border-black/5" style="background:${bankMeta.bg}; color:${textColor};">
+                ${escapeHtml(bankMeta.short)}
+              </div>`;
+          }
+          return `
+            <div class="w-11 h-11 rounded-full bg-pink-100 text-berry-600 flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M3 18h18M12 3L2 8h20L12 3z"/>
+              </svg>
+            </div>`;
+        }
+      }
+    }
+
+    /* ============================================================================
+3. แสดงผลหน้าลูกค้า (Render Customer View) + แผ่นเสียงเล่นเพลงจริง + เครื่องปริ้นใบเสร็จ QR
+       ============================================================================ */
+    function updateVinylUiState() {
+      const disc = document.getElementById('vinylDiscEl');
+      const btn = document.getElementById('vinylPlayerBtn');
+      const badge = document.getElementById('vinylNoteBadge');
+      const icon = document.getElementById('vinylNoteIcon');
+      if (!disc || !btn) return;
+
+      if (isVinylSpinning) {
+        disc.classList.remove('paused');
+        btn.classList.remove('notes-paused');
+        if (badge) {
+          badge.className = 'pointer-events-none absolute -bottom-0.5 -right-0.5 z-20 w-6 h-6 rounded-full bg-gradient-to-br from-[#FBCFE8] to-[#DDD6FE] border-[2.5px] border-white shadow-sm flex items-center justify-center transition-transform group-active:scale-90';
+        }
+        if (icon) {
+          icon.classList.remove('opacity-45');
+          icon.classList.add('text-[#562441]');
+        }
+      } else {
+        disc.classList.add('paused');
+        btn.classList.add('notes-paused');
+        if (badge) {
+          badge.className = 'pointer-events-none absolute -bottom-0.5 -right-0.5 z-20 w-6 h-6 rounded-full bg-gradient-to-br from-[#FCE7F3] to-[#EDE9FE] border-[2.5px] border-white shadow-sm flex items-center justify-center transition-transform group-active:scale-90';
+        }
+        if (icon) {
+          icon.classList.toggle('opacity-45', userPausedMusic);
+        }
+      }
+    }
+
+    /* สร้างเสียงดนตรีกล่องดนตรีสไตล์คาเฟ่น่ารักด้วย Tone.js */
+    function setupCuteMelody() {
+      if (toneLoop) return;
+      Tone.Transport.bpm.value = 108;
+
+      toneSynth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'triangle' },
+        envelope: { attack: 0.02, decay: 0.25, sustain: 0.15, release: 0.8 }
+      }).toDestination();
+      toneSynth.volume.value = -14;
+
+      tonePadSynth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.25, decay: 0.4, sustain: 0.4, release: 1.2 }
+      }).toDestination();
+      tonePadSynth.volume.value = -24;
+
+      const melody = [
+        'C5', 'E5', 'G5', 'B5', 'A5', 'G5', 'E5', null,
+        'F5', 'A5', 'G5', 'E5', 'D5', 'E5', 'C5', null,
+        'E5', 'G5', 'C6', 'B5', 'A5', 'G5', 'F5', 'E5',
+        'D5', 'F5', 'A5', 'G5', 'E5', 'D5', 'C5', null
+      ];
+      const chords = [
+        ['C4', 'E4', 'G4'],
+        ['F3', 'A3', 'C4'],
+        ['A3', 'C4', 'E4'],
+        ['G3', 'B3', 'D4']
+      ];
+
+      let step = 0;
+      let chordIdx = 0;
+
+      toneLoop = new Tone.Loop((time) => {
+        const note = melody[step % melody.length];
+        if (note && toneSynth) {
+          toneSynth.triggerAttackRelease(note, '8n', time);
+        }
+        step++;
+      }, '8n');
+
+      tonePadLoop = new Tone.Loop((time) => {
+        const chord = chords[chordIdx % chords.length];
+        if (chord && tonePadSynth) {
+          tonePadSynth.triggerAttackRelease(chord, '1m', time);
+        }
+        chordIdx++;
+      }, '1m');
+
+      toneLoop.start(0);
+      tonePadLoop.start(0);
+    }
+
+    async function startVinylMusic() {
+      try {
+        if (typeof Tone === 'undefined') return false;
+        await Tone.start();
+        if (Tone.context.state !== 'running') {
+          await Tone.context.resume();
+        }
+        setupCuteMelody();
+        if (Tone.Transport.state !== 'started') {
+          Tone.Transport.start();
+        }
+        musicStarted = true;
+        isVinylSpinning = true;
+        userPausedMusic = false;
+        updateVinylUiState();
+        return true;
+      } catch (err) {
+        console.warn('ไม่สามารถเริ่มเล่นเสียงเพลงได้', err);
+        return false;
+      }
+    }
+
+    function pauseVinylMusic() {
+      try {
+        if (typeof Tone !== 'undefined' && Tone.Transport.state === 'started') {
+          Tone.Transport.pause();
+        }
+      } catch (err) {
+        console.warn('หยุดเพลงไม่สำเร็จ', err);
+      }
+      isVinylSpinning = false;
+      userPausedMusic = true;
+      updateVinylUiState();
+    }
+
+    async function toggleVinylSpin(evt) {
+      if (evt) evt.stopPropagation();
+      if (isVinylSpinning) {
+        pauseVinylMusic();
+        showToast('พักเสียงเพลงชั่วคราวแล้ว', 'info');
+      } else {
+        const ok = await startVinylMusic();
+        if (ok) {
+          showToast('กำลังเล่นเพลงร้านโนริ ♪', 'success');
+        } else {
+          showToast('เบราว์เซอร์บล็อกเสียง กรุณาลองแตะอีกครั้ง', 'error');
+        }
+      }
+    }
+
+    /* เล่นเพลงอัตโนมัติทันทีเมื่อผู้ใช้แตะหรือคลิกส่วนใดก็ได้บนหน้าจอครั้งแรก */
+    function setupAutoPlayOnFirstTouch() {
+      const unlockHandler = async (evt) => {
+        if (userPausedMusic || musicStarted) return;
+        // หากกดที่ปุ่มแผ่นเสียงหรือกดโลโก้เพื่อเข้าหลังบ้าน ไม่ต้องเริ่มเพลงจากตัวดักนี้
+        if (evt.target && evt.target.closest && (evt.target.closest('#vinylPlayerBtn') || evt.target.closest('#shopLogoBtn'))) return;
+        const ok = await startVinylMusic();
+        if (ok) {
+          removeAutoPlayListeners();
+        }
+      };
+
+      function removeAutoPlayListeners() {
+        document.removeEventListener('pointerdown', unlockHandler, true);
+        document.removeEventListener('touchstart', unlockHandler, true);
+        document.removeEventListener('click', unlockHandler, true);
+        document.removeEventListener('keydown', unlockHandler, true);
+      }
+
+      document.addEventListener('pointerdown', unlockHandler, true);
+      document.addEventListener('touchstart', unlockHandler, true);
+      document.addEventListener('click', unlockHandler, true);
+      document.addEventListener('keydown', unlockHandler, true);
+    }
+
+    function handleMascotImgError() {
+      const customImg = document.getElementById('customMascotImg');
+      const defaultSvg = document.getElementById('defaultMascotSvg');
+      customImg.classList.add('hidden');
+      defaultSvg.classList.remove('hidden');
+    }
+
+    function renderCustomerView() {
+      const shopNameEl = document.getElementById('displayShopName');
+      const shopTaglineEl = document.getElementById('displayShopTagline');
+      const accountHolderEl = document.getElementById('displayAccountHolder');
+      if (shopNameEl) shopNameEl.textContent = appConfig.shopName || 'ร้านโนริ';
+      if (shopTaglineEl) shopTaglineEl.textContent = appConfig.shopTagline || 'ยินดีต้อนรับค่ะ • โอนง่าย ตรวจไว ใจดี';
+      if (accountHolderEl) accountHolderEl.textContent = appConfig.accountHolder || 'ชื่อบัญชี • ชื่อผู้รับเงิน';
+
+      // โลโก้ร้านและโลโก้กลางแผ่นเสียง
+      const logoUrl = DEFAULT_LOGO_URL;
+      const shopLogoImg = document.getElementById('shopLogoImg');
+      const vinylLogoImg = document.getElementById('vinylLogoImg');
+      if (shopLogoImg && shopLogoImg.src !== logoUrl) shopLogoImg.src = logoUrl;
+      if (vinylLogoImg && vinylLogoImg.src !== logoUrl) vinylLogoImg.src = logoUrl;
+
+      // มาสคอต: ใช้รูปที่อัปโหลดเอง หรือรูปมาสคอตเริ่มต้นของร้าน (มี fallback SVG อัตโนมัติ)
+      const customImg = document.getElementById('customMascotImg');
+      const defaultSvg = document.getElementById('defaultMascotSvg');
+      const mascotSrc = appConfig.customMascotDataUrl || DEFAULT_MASCOT_URL;
+      if (mascotSrc) {
+        customImg.src = mascotSrc;
+        customImg.classList.remove('hidden');
+        defaultSvg.classList.add('hidden');
+      } else {
+        customImg.classList.add('hidden');
+        defaultSvg.classList.remove('hidden');
+      }
+
+      // ยอดที่ต้องโอน & สถานะล็อกยอด (แยกระหว่างร้านล็อกยอด กับลูกค้ากรอกและล็อกยอดเอง)
+      const lockedText = document.getElementById('displayAmountLocked');
+      const amountInput = document.getElementById('customerAmountInput');
+      const lockStatusText = document.getElementById('lockStatusText');
+      const lockIconSvg = document.getElementById('lockIconSvg');
+      const unlockSelfBtn = document.getElementById('unlockSelfBtn');
+      const amountHintText = document.getElementById('amountHintText');
+
+      const effectiveLocked = isStoreBillLocked || isCustomerSelfLocked;
+      lockedText.textContent = formatMoney(appConfig.amount);
+      if (document.activeElement !== amountInput) {
+        amountInput.value = Number(appConfig.amount) > 0 ? Number(appConfig.amount).toFixed(2) : '';
+      }
+
+      if (effectiveLocked) {
+        lockedText.classList.remove('hidden');
+        amountInput.classList.add('hidden');
+        lockIconSvg.innerHTML = `<rect x="5" y="11" width="14" height="10" rx="2.5"></rect><path d="M8 11V7a4 4 0 018 0v4"></path>`;
+        if (isStoreBillLocked) {
+          lockStatusText.textContent = 'ล็อกยอดแล้ว • ปริ้น QR';
+          unlockSelfBtn.classList.add('hidden');
+          amountHintText.innerHTML = 'ยอดโอนนี้ถูกล็อกโดยร้านค้า • แตะปุ่มด้านล่างเพื่อปริ้นใบเสร็จ QR';
+        } else {
+          lockStatusText.textContent = 'ปริ้นใบเสร็จ QR อีกครั้ง';
+          unlockSelfBtn.classList.remove('hidden');
+          amountHintText.innerHTML = 'ล็อกยอดเรียบร้อยแล้ว • สแกน QR บนใบเสร็จด้านล่างได้เลย';
+        }
+      } else {
+        lockedText.classList.add('hidden');
+        amountInput.classList.remove('hidden');
+        lockStatusText.textContent = 'ล็อกยอด & ปริ้น QR';
+        lockIconSvg.innerHTML = `<rect x="5" y="11" width="14" height="10" rx="2.5"></rect><path d="M8 11V7a4 4 0 017.5-1.8"></path>`;
+        unlockSelfBtn.classList.add('hidden');
+        amountHintText.innerHTML = 'พิมพ์ยอดเงินที่ต้องการแล้วกดปุ่ม <strong>ล็อกยอด</strong> เพื่อปริ้นใบเสร็จ QR';
+      }
+
+      // สร้างรายการการ์ดช่องทางโอนเงิน + โน้ตสลิป + รายละเอียด
+      const container = document.getElementById('paymentCardsContainer');
+      let cardsHtml = '';
+
+      // 1) การ์ดช่องทางโอนเงินที่เปิดใช้งาน
+      const activeChannels = appConfig.channels.filter(c => c.enabled);
+      activeChannels.forEach(ch => {
+        cardsHtml += `
+          <div class="bg-white rounded-[24px] px-4 py-3.5 shadow-card-soft border border-white flex items-center justify-between gap-2.5 transition-transform hover:scale-[1.01]">
+            <div class="flex items-center gap-3 min-w-0">
+              ${getChannelIconSvg(ch.type)}
+              <div class="w-[1.5px] h-10 bg-pink-200/80 rounded-full shrink-0"></div>
+              <div class="min-w-0">
+                <p class="font-title text-[16px] sm:text-[17px] font-medium text-[#562441] leading-snug truncate">${escapeHtml(ch.name)}</p>
+                <p class="font-body text-[14px] sm:text-[15px] text-[#6F405B] tracking-wide truncate">${escapeHtml(ch.number)}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onclick="handleCopyButton(this, '${escapeJs(ch.number)}', 'คัดลอกเลข ${escapeJs(ch.name)} แล้ว')"
+              class="btn-berry shrink-0 px-3.5 sm:px-4 py-2 rounded-full text-white font-title text-[14px] font-medium shadow-btn-berry flex items-center gap-1.5"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              <span>คัดลอก</span>
+            </button>
+          </div>
+        `;
+      });
+
+      // 2) การ์ดโน้ตสลิป
+      cardsHtml += `
+        <div class="bg-white rounded-[24px] px-4 py-3.5 shadow-card-soft border border-white flex items-center justify-between gap-2.5 transition-transform hover:scale-[1.01]">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-11 h-11 flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 44 44" fill="none" class="w-9 h-9">
+                <defs>
+                  <linearGradient id="noteGrad" x1="6" y1="6" x2="38" y2="38" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#D946EF"/>
+                    <stop offset="1" stop-color="#C8255C"/>
+                  </linearGradient>
+                </defs>
+                <path d="M11 8C11 6.34 12.34 5 14 5H30C31.66 5 33 6.34 33 8V38L28.5 34.5L24.5 38L20 34.5L15.5 38L11 34.5V8Z" stroke="url(#noteGrad)" stroke-width="3" stroke-linejoin="round" fill="#FFF7FB"/>
+                <path d="M16 14H28M16 20H28M16 26H23" stroke="url(#noteGrad)" stroke-width="2.8" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="w-[1.5px] h-10 bg-pink-200/80 rounded-full shrink-0"></div>
+            <div class="min-w-0">
+              <p class="font-title text-[16px] sm:text-[17px] font-medium text-[#562441] leading-snug">โน้ตสลิป</p>
+              <p class="font-body text-[14px] sm:text-[15px] text-[#6F405B] truncate">${escapeHtml(appConfig.slipNote)}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onclick="handleCopyButton(this, '${escapeJs(appConfig.slipNote)}', 'คัดลอกโน้ตสลิปแล้ว')"
+            class="btn-berry shrink-0 px-3.5 sm:px-4 py-2 rounded-full text-white font-title text-[14px] font-medium shadow-btn-berry flex items-center gap-1.5"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            <span>คัดลอก</span>
+          </button>
+        </div>
+      `;
+
+      // 3) การ์ดรายละเอียด (พื้นหลังอมชมพูอ่อนนุ่มนวลเหมือนต้นแบบ แตะเพื่อดูช่องทางแชทร้านค้า)
+      cardsHtml += `
+        <button
+          type="button"
+          onclick="openChatOrQrModal()"
+          class="w-full text-left bg-[#FFF8FB] hover:bg-white rounded-[24px] px-4 py-3.5 shadow-card-soft border border-pink-100/90 flex items-center gap-3 transition-all active:scale-[0.99]"
+        >
+          <div class="w-11 h-11 flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 44 44" fill="none" class="w-9 h-9">
+              <path d="M22 8C13.7 8 7 13.6 7 20.5C7 24.3 9 27.7 12.2 30L10.5 36L17.2 32.8C18.7 33.1 20.3 33.3 22 33.3C30.3 33.3 37 27.7 37 20.5C37 13.6 30.3 8 22 8Z" stroke="#E05C8A" stroke-width="2.8" stroke-linejoin="round" fill="#FFF0F6"/>
+              <circle cx="16.5" cy="20.5" r="2" fill="#E05C8A"/>
+              <circle cx="22" cy="20.5" r="2" fill="#E05C8A"/>
+              <circle cx="27.5" cy="20.5" r="2" fill="#E05C8A"/>
+            </svg>
+          </div>
+          <div class="w-[1.5px] h-10 bg-pink-200/80 rounded-full shrink-0"></div>
+          <div class="min-w-0 flex-1">
+            <p class="font-title text-[16px] sm:text-[17px] font-medium text-[#B82055] leading-snug">รายละเอียด</p>
+            <p class="font-body text-[14px] sm:text-[15px] text-[#562441]">${escapeHtml(appConfig.detailsText)}</p>
+          </div>
+        </button>
+      `;
+
+      container.innerHTML = cardsHtml;
+      updatePendingBadges();
+    }
+
+    function handleCustomerAmountInput(val) {
+      const parsed = parseFloat(val);
+      if (!isNaN(parsed) && parsed >= 0) {
+        appConfig.amount = parsed;
+      } else {
+        appConfig.amount = 0;
+      }
+    }
+
+    /* ============================================================================
+       3.1 ระบบล็อกยอดเอง & เครื่องปริ้นใบเสร็จคิวอาร์โค้ดล็อกยอด (PromptPay EMVCo)
+       ============================================================================ */
+    function handleLockButtonClick() {
+      const effectiveLocked = isStoreBillLocked || isCustomerSelfLocked;
+
+      if (!effectiveLocked) {
+        const inputVal = parseFloat(document.getElementById('customerAmountInput').value);
+        if (isNaN(inputVal) || inputVal <= 0) {
+          showToast('กรุณากรอกยอดเงินที่มากกว่า 0 บาทก่อนล็อกยอด', 'error');
+          document.getElementById('customerAmountInput').focus();
+          return;
+        }
+        appConfig.amount = inputVal;
+        isCustomerSelfLocked = true;
+        renderCustomerView();
+        triggerReceiptPrint();
+        showToast(`ล็อกยอด ฿${formatMoney(appConfig.amount)} และปริ้นใบเสร็จ QR แล้ว`, 'success');
+      } else {
+        // กดปริ้นใบเสร็จ QR ซ้ำ / แสดงใบเสร็จอีกครั้ง
+        triggerReceiptPrint();
+      }
+    }
+
+    function handleUnlockSelf() {
+      if (isStoreBillLocked) {
+        showLockInfoModal();
+        return;
+      }
+      isCustomerSelfLocked = false;
+      hideReceiptPaper();
+      renderCustomerView();
+      setTimeout(() => {
+        const inp = document.getElementById('customerAmountInput');
+        if (inp) {
+          inp.focus();
+          inp.select();
+        }
+      }, 60);
+      showToast('ปลดล็อกแล้ว สามารถกรอกยอดใหม่ได้ทันที', 'info');
+    }
+
+    function crc16Ccitt(str) {
+      let crc = 0xFFFF;
+      for (let i = 0; i < str.length; i++) {
+        crc ^= str.charCodeAt(i) << 8;
+        for (let j = 0; j < 8; j++) {
+          crc = (crc & 0x8000) !== 0
+            ? (((crc << 1) ^ 0x1021) & 0xFFFF)
+            : ((crc << 1) & 0xFFFF);
+        }
+      }
+      return crc.toString(16).toUpperCase().padStart(4, '0');
+    }
+
+    function formatEmvTag(id, value) {
+      return id + String(value.length).padStart(2, '0') + value;
+    }
+
+    function buildPromptPayPayload(rawTarget, amount) {
+      const digits = String(rawTarget || '').replace(/\D/g, '');
+      let targetTag = '';
+      if (digits.length >= 13) {
+        targetTag = formatEmvTag('02', digits.slice(0, 13));
+      } else {
+        const normalized = (digits.length === 10 && digits.startsWith('0'))
+          ? '0066' + digits.slice(1)
+          : '0066000000000';
+        targetTag = formatEmvTag('01', normalized);
+      }
+
+      const merchantInfo = formatEmvTag('00', 'A000000677010111') + targetTag;
+      const amtNum = parseFloat(amount);
+      const hasAmount = !isNaN(amtNum) && amtNum > 0;
+
+      let payload = '';
+      payload += formatEmvTag('00', '01');
+      payload += formatEmvTag('01', hasAmount ? '12' : '11'); // 12 = ล็อกยอดเงิน
+      payload += formatEmvTag('29', merchantInfo);
+      payload += formatEmvTag('53', '764'); // สกุลเงินบาท (THB)
+      if (hasAmount) {
+        payload += formatEmvTag('54', amtNum.toFixed(2));
+      }
+      payload += formatEmvTag('58', 'TH');
+      payload += '6304';
+      payload += crc16Ccitt(payload);
+      return payload;
+    }
+
+    function getPromptPaySourceChannel() {
+      const enabled = appConfig.channels.filter(c => c.enabled);
+      return (
+        enabled.find(c => c.type === 'promptpay') ||
+        enabled.find(c => c.type === 'truemoney') ||
+        enabled[0] ||
+        { number: '000-000-0000' }
+      );
+    }
+
+    function triggerReceiptPrint(shouldScroll = false) {
+      const wrapper = document.getElementById('receiptPrinterWrapper');
+      const paper = document.getElementById('receiptPaperEl');
+      const mascotStage = document.getElementById('mascotStageEl');
+      const pill = document.getElementById('mascotPrinterPill');
+      const dot = document.getElementById('printerStatusDot');
+      const label = document.getElementById('printerStatusLabel');
+      const qrBox = document.getElementById('qrCodeContainer');
+      if (!wrapper || !paper || !qrBox) return;
+
+      // อัปเดตข้อความบนใบเสร็จ
+      const now = new Date();
+      const timeText = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} น.`;
+      document.getElementById('receiptShopLabel').textContent = `${appConfig.shopName || 'ร้านโนริ'} • ใบแจ้งชำระเงิน`;
+      document.getElementById('receiptTimestamp').textContent = timeText;
+      document.getElementById('receiptAmountText').textContent = `฿ ${formatMoney(appConfig.amount)}`;
+      document.getElementById('receiptAccountText').textContent = appConfig.accountHolder || 'ชื่อบัญชี • ชื่อผู้รับเงิน';
+      document.getElementById('receiptNoteText').textContent = `โน้ตสลิป: ${appConfig.slipNote || '-'}`;
+
+      // ตรวจสอบว่าใช้เบอร์ตัวอย่าง (000...) หรือไม่ เพื่อแจ้งสถานะอย่างตรงไปตรงมา
+      const sourceCh = getPromptPaySourceChannel();
+      const cleanDigits = String(sourceCh.number || '').replace(/\D/g, '');
+      const isSampleZero = !cleanDigits || /^0+$/.test(cleanDigits);
+      const demoNotice = document.getElementById('receiptDemoNotice');
+      if (demoNotice) {
+        if (isSampleZero) {
+          demoNotice.classList.remove('hidden');
+        } else {
+          demoNotice.classList.add('hidden');
+        }
+      }
+
+      // สร้าง QR Code ล็อกยอด
+      const payload = buildPromptPayPayload(sourceCh.number, appConfig.amount);
+      qrBox.innerHTML = '';
+      try {
+        if (typeof QRCode !== 'undefined') {
+          new QRCode(qrBox, {
+            text: payload,
+            width: 132,
+            height: 132,
+            colorDark: '#562441',
+            colorLight: '#FFFFFF',
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        } else {
+          qrBox.innerHTML = `<div class="text-[11px] text-berry-700 p-2">ไม่สามารถโหลดไลบรารี QR ได้ (กรุณาเชื่อมต่ออินเทอร์เน็ต)</div>`;
+        }
+      } catch (e) {
+        qrBox.innerHTML = `<div class="text-[11px] text-berry-700 p-2">เกิดข้อผิดพลาดในการสร้าง QR</div>`;
+      }
+
+      // เล่นแอนิเมชันมาสคอตขยับเบาๆ + กระดาษใบเสร็จไหลออกมาจากใต้มาสคอต
+      wrapper.classList.remove('hidden');
+      paper.classList.remove('animate-receipt-feed');
+      void paper.offsetWidth; // รีเซ็ตแอนิเมชันให้เล่นใหม่ทุกครั้งที่กดปริ้น
+      paper.classList.add('animate-receipt-feed');
+
+      if (mascotStage) {
+        mascotStage.classList.remove('animate-mascot-print');
+        void mascotStage.offsetWidth;
+        mascotStage.classList.add('animate-mascot-print');
+        if (shouldScroll) {
+          mascotStage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+
+      if (pill && dot && label) {
+        pill.classList.remove('hidden');
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping';
+        label.textContent = 'กำลังปริ้น QR...';
+        setTimeout(() => {
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
+          label.textContent = 'QR พร้อมสแกน';
+        }, 1150);
+      }
+    }
+
+    function hideReceiptPaper() {
+      const wrapper = document.getElementById('receiptPrinterWrapper');
+      const pill = document.getElementById('mascotPrinterPill');
+      if (wrapper) wrapper.classList.add('hidden');
+      if (pill) pill.classList.add('hidden');
+    }
+
+    function buildReceiptPngCanvas() {
+      const qrCanvas = document.querySelector('#qrCodeContainer canvas');
+      const qrImg = document.querySelector('#qrCodeContainer img');
+      const source = (qrCanvas && qrCanvas.width > 0)
+        ? qrCanvas
+        : (qrImg && qrImg.complete && qrImg.naturalWidth > 0 ? qrImg : null);
+      if (!source) return null;
+
+      // วาดใบเสร็จความละเอียดสูงลง Canvas เพื่อให้คิวอาร์โค้ดคมชัด สแกนติดง่าย
+      const out = document.createElement('canvas');
+      out.width = 640;
+      out.height = 800;
+      const ctx = out.getContext('2d');
+
+      // พื้นหลังใบเสร็จสีขาว
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, out.width, out.height);
+
+      // กรอบพาสเทลชมพู-ม่วง
+      ctx.strokeStyle = '#E9D5FF';
+      ctx.lineWidth = 10;
+      ctx.strokeRect(18, 18, out.width - 36, out.height - 36);
+
+      ctx.fillStyle = '#C8255C';
+      ctx.font = 'bold 38px Prompt, Mitr, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(appConfig.shopName || 'ร้านโนริ', out.width / 2, 92);
+
+      ctx.fillStyle = '#7E3A7A';
+      ctx.font = '24px Prompt, sans-serif';
+      ctx.fillText('QR ล็อกยอดชำระเงิน', out.width / 2, 138);
+
+      ctx.fillStyle = '#8B3280';
+      ctx.font = 'bold 54px Prompt, Mitr, sans-serif';
+      ctx.fillText(`฿ ${formatMoney(appConfig.amount)}`, out.width / 2, 212);
+
+      // ปิด smoothing เพื่อให้โมดูลของ QR Code คมกริบ สแกนผ่านแอปธนาคารได้แม่นยำ
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(source, (out.width - 340) / 2, 248, 340, 340);
+      ctx.imageSmoothingEnabled = true;
+
+      ctx.fillStyle = '#562441';
+      ctx.font = '24px Prompt, sans-serif';
+      ctx.fillText(appConfig.accountHolder || '', out.width / 2, 650);
+
+      ctx.fillStyle = '#7D4B66';
+      ctx.font = '21px Prompt, sans-serif';
+      ctx.fillText(`โน้ตสลิป: ${appConfig.slipNote || '-'}`, out.width / 2, 696);
+
+      return out;
+    }
+
+    function triggerBlobFileDownload(pngBlob, fileName) {
+      // แปลงชนิด Blob เป็น application/octet-stream เพื่อให้เบราว์เซอร์ดาวน์โหลดไฟล์ลงเครื่องจริง ไม่เปิดภาพทับหน้าเดิม
+      const downloadBlob = new Blob([pngBlob], { type: 'application/octet-stream' });
+      const blobUrl = URL.createObjectURL(downloadBlob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      link.rel = 'noopener noreferrer';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (link.parentNode) link.parentNode.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      }, 10000);
+    }
+
+    function triggerPendingQrBlobDownload() {
+      if (!pendingQrDownloadBlob) {
+        showToast('ไม่พบไฟล์ภาพ QR กรุณาลองกดบันทึกใหม่อีกครั้ง', 'error');
+        return;
+      }
+      try {
+        triggerBlobFileDownload(pendingQrDownloadBlob, pendingQrDownloadFileName);
+        showToast('เริ่มดาวน์โหลดไฟล์ใบเสร็จ QR แล้ว', 'success');
+      } catch (err) {
+        showToast('กรุณาแตะค้างที่ภาพด้านบนแล้วเลือก "บันทึกรูปภาพ"', 'info');
+      }
+    }
+
+    function openQrSaveModal(dataUrl, pngBlob, fileName) {
+      pendingQrDownloadBlob = pngBlob;
+      pendingQrDownloadFileName = fileName;
+      const previewImg = document.getElementById('qrSavePreviewImg');
+      if (previewImg) previewImg.src = dataUrl;
+      document.getElementById('qrSaveModal').classList.remove('hidden');
+    }
+
+    async function downloadReceiptQr() {
+      try {
+        const outCanvas = buildReceiptPngCanvas();
+        if (!outCanvas) {
+          showToast('ยังไม่มีภาพ QR สำหรับบันทึก กรุณากดล็อกยอดก่อน', 'error');
+          return;
+        }
+
+        const fileName = `qr-nori-${Number(appConfig.amount || 0).toFixed(2)}.png`;
+        const dataUrl = outCanvas.toDataURL('image/png');
+        const pngBlob = await new Promise((resolve) => outCanvas.toBlob(resolve, 'image/png'));
+        if (!pngBlob) {
+          showToast('ไม่สามารถสร้างไฟล์ภาพ QR ได้ กรุณาลองใหม่อีกครั้ง', 'error');
+          return;
+        }
+
+        const isAppleTouch = /iPad|iPhone|iPod/.test(navigator.userAgent)
+          || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+        // บน iPad / iPhone ลองเปิดแถบบันทึกรูปภาพของระบบ (Web Share File) ก่อน เพื่อเซฟลงอัลบั้มรูปโดยไม่เด้งไปหน้าอื่น
+        if (isAppleTouch && typeof File !== 'undefined' && navigator.share && navigator.canShare) {
+          try {
+            const shareFile = new File([pngBlob], fileName, { type: 'image/png' });
+            if (navigator.canShare({ files: [shareFile] })) {
+              await navigator.share({
+                files: [shareFile],
+                title: `ใบเสร็จ QR ${appConfig.shopName || 'ร้านโนริ'}`
+              });
+              showToast('บันทึกภาพใบเสร็จ QR เรียบร้อยแล้ว', 'success');
+              return;
+            }
+          } catch (shareErr) {
+            if (shareErr && shareErr.name === 'AbortError') {
+              return; // ผู้ใช้กดยกเลิกเอง
+            }
+            // หากเบราว์เซอร์/กรอบแสดงผลจำกัดการแชร์ จะสลับไปเปิดหน้าต่างบันทึกภาพในหน้าเดิมแทน
+          }
+          openQrSaveModal(dataUrl, pngBlob, fileName);
+          return;
+        }
+
+        // บนคอมพิวเตอร์และ Android สั่งดาวน์โหลดไฟล์ PNG ลงเครื่องโดยตรง (ไม่เปลี่ยนหน้า)
+        triggerBlobFileDownload(pngBlob, fileName);
+        showToast('บันทึกภาพใบเสร็จ QR ลงเครื่องเรียบร้อยแล้ว', 'success');
+      } catch (err) {
+        showToast('ไม่สามารถบันทึกอัตโนมัติได้ กรุณาลองใหม่อีกครั้ง', 'error');
+      }
+    }
+
+    /* ============================================================================
+4. การคัดลอกข้อความ (ใช้ document.execCommand เพื่อความเสถียรใน iFrame)
+       ============================================================================ */
+    function copyTextValue(text, successMsg) {
+      try {
+        const tempInput = document.createElement('textarea');
+        tempInput.value = text;
+        tempInput.setAttribute('readonly', '');
+        tempInput.style.position = 'fixed';
+        tempInput.style.opacity = '0';
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        tempInput.setSelectionRange(0, 99999);
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        showToast(successMsg || 'คัดลอกเรียบร้อยแล้ว!', 'success');
+        return true;
+      } catch (err) {
+        showToast('ไม่สามารถคัดลอกอัตโนมัติได้ กรุณาคัดลอกด้วยตนเอง', 'error');
+        return false;
+      }
+    }
+
+    function handleCopyButton(btnEl, text, msg) {
+      const ok = copyTextValue(text, msg);
+      if (!ok) return;
+      const originalHtml = btnEl.innerHTML;
+      btnEl.innerHTML = `
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        <span>สำเร็จ</span>
+      `;
+      btnEl.classList.add('ring-2', 'ring-pink-300');
+      setTimeout(() => {
+        btnEl.innerHTML = originalHtml;
+        btnEl.classList.remove('ring-2', 'ring-pink-300');
+      }, 1400);
+    }
+
+    /* ============================================================================
+5. ระบบหลังบ้าน (Admin Backoffice Rendering & Actions)
+       ============================================================================ */
+    function renderAdminSettings() {
+      document.getElementById('inputShopName').value = appConfig.shopName;
+      document.getElementById('inputShopTagline').value = appConfig.shopTagline || '';
+      document.getElementById('inputAccountHolder').value = appConfig.accountHolder;
+      document.getElementById('inputAmount').value = Number(appConfig.amount).toFixed(2);
+      document.getElementById('inputLockAmount').checked = !!appConfig.lockAmount;
+      document.getElementById('inputSlipNote').value = appConfig.slipNote;
+      document.getElementById('inputDetails').value = appConfig.detailsText;
+      document.getElementById('inputChatUrl').value = appConfig.chatUrl || '';
+
+      const originBadge = document.getElementById('dataOriginBadge');
+      if (appConfig.isModified) {
+        originBadge.textContent = 'แก้ไขในโหมด Demo (เฉพาะเครื่องนี้)';
+        originBadge.className = 'px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-100 text-amber-800';
+      } else {
+        originBadge.textContent = 'ข้อมูลตัวอย่างเริ่มต้น';
+        originBadge.className = 'px-2.5 py-1 rounded-full text-[11px] font-medium bg-pink-100 text-berry-700';
+      }
+
+      renderAdminChannels();
+      updateGeneratedLink();
+      renderAdminSlips();
+    }
+
+    function renderAdminChannels() {
+      const listEl = document.getElementById('adminChannelsList');
+      listEl.innerHTML = appConfig.channels.map((ch, idx) => `
+        <div class="p-3.5 rounded-2xl bg-pink-50/60 border border-pink-200/80 space-y-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" ${ch.enabled ? 'checked' : ''} onchange="updateChannelField(${idx}, 'enabled', this.checked)" class="sr-only peer" />
+                <div class="w-9 h-5 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-berry-600"></div>
+              </label>
+              <span class="text-xs font-medium text-berry-900">ช่องทางที่ ${idx + 1}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <select onchange="handleBankTypeChange(${idx}, this.value)" class="max-w-[180px] sm:max-w-[210px] text-xs px-2 py-1 rounded-lg border border-pink-200 bg-white text-berry-900">
+                ${THAI_BANKS_LIST.map(bank => `<option value="${bank.code}" ${ch.type === bank.code ? 'selected' : ''}>${escapeHtml(bank.label)}</option>`).join('')}
+              </select>
+              ${appConfig.channels.length > 1 ? `
+                <button type="button" onclick="removePaymentChannel(${idx})" class="p-1 text-rose-500 hover:bg-rose-100 rounded-lg" title="ลบช่องทาง">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>` : ''}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <input type="text" value="${escapeHtml(ch.name)}" oninput="updateChannelField(${idx}, 'name', this.value)" placeholder="ชื่อธนาคาร / ช่องทาง" class="px-3 py-2 rounded-xl border border-pink-200 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-pink-400" />
+            <input type="text" value="${escapeHtml(ch.number)}" oninput="updateChannelField(${idx}, 'number', this.value)" placeholder="เลขบัญชี / เบอร์วอลเล็ท" class="px-3 py-2 rounded-xl border border-pink-200 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-pink-400" />
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateChannelField(index, field, value) {
+      if (!appConfig.channels[index]) return;
+      appConfig.channels[index][field] = value;
+    }
+
+    function handleBankTypeChange(index, newType) {
+      if (!appConfig.channels[index]) return;
+      const oldName = (appConfig.channels[index].name || '').trim();
+      const knownNames = THAI_BANKS_LIST.map(b => b.label.replace(/\s*\([^)]*\)$/, '').trim());
+      const fullLabels = THAI_BANKS_LIST.map(b => b.label.trim());
+      appConfig.channels[index].type = newType;
+
+      // หากชื่อเดิมเป็นชื่อธนาคารมาตรฐานหรือว่างอยู่ ให้อัปเดตชื่อธนาคารให้ตรงกับที่เลือกอัตโนมัติ
+      const selectedBank = THAI_BANKS_LIST.find(b => b.code === newType);
+      if (selectedBank && (!oldName || knownNames.includes(oldName) || fullLabels.includes(oldName))) {
+        appConfig.channels[index].name = selectedBank.label.replace(/\s*\([^)]*\)$/, '').trim();
+        renderAdminChannels();
+      }
+    }
+
+    function addNewPaymentChannel() {
+      appConfig.channels.push({
+        id: 'ch-' + Date.now(),
+        type: 'promptpay',
+        name: 'พร้อมเพย์ (PromptPay)',
+        number: '000-000-0000',
+        enabled: true
+      });
+      renderAdminChannels();
+      showToast('เพิ่มช่องทางโอนเงินใหม่แล้ว (กดบันทึกเพื่ออัปเดตหน้าลูกค้า)', 'info');
+    }
+
+    function removePaymentChannel(index) {
+      appConfig.channels.splice(index, 1);
+      renderAdminChannels();
+    }
+
+    function handleMascotUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) {
+        showToast('กรุณาเลือกไฟล์รูปขนาดไม่เกิน 2MB สำหรับโหมด Demo', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        appConfig.customMascotDataUrl = e.target.result;
+        appConfig.isModified = true;
+        persistDemoConfig();
+        renderCustomerView();
+        showToast('อัปโหลดภาพมาสคอตทดลองเรียบร้อย (แสดงผลบนเบราว์เซอร์นี้)', 'success');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearCustomMascot() {
+      appConfig.customMascotDataUrl = '';
+      persistDemoConfig();
+      renderCustomerView();
+      showToast('กลับไปใช้ภาพมาสคอตเริ่มต้นของร้านแล้ว', 'info');
+    }
+
+    function saveAdminSettings() {
+      appConfig.shopName = document.getElementById('inputShopName').value.trim() || 'ร้านโนริ';
+      appConfig.shopTagline = document.getElementById('inputShopTagline').value.trim() || 'ยินดีต้อนรับค่ะ • โอนง่าย ตรวจไว ใจดี';
+      appConfig.accountHolder = document.getElementById('inputAccountHolder').value.trim() || 'ชื่อบัญชี • ชื่อผู้รับเงิน';
+      const parsedAmount = parseFloat(document.getElementById('inputAmount').value);
+      appConfig.amount = isNaN(parsedAmount) ? 0 : parsedAmount;
+      appConfig.lockAmount = document.getElementById('inputLockAmount').checked;
+      isStoreBillLocked = appConfig.lockAmount;
+      if (!isStoreBillLocked) {
+        isCustomerSelfLocked = false;
+        hideReceiptPaper();
+      }
+      appConfig.slipNote = document.getElementById('inputSlipNote').value.trim() || 'ใช้บริการร้านโนริ';
+      appConfig.detailsText = document.getElementById('inputDetails').value.trim() || 'โอนแล้วส่งสลิปให้ร้านทางแชท';
+      appConfig.chatUrl = document.getElementById('inputChatUrl').value.trim();
+      appConfig.isModified = true;
+
+      persistDemoConfig();
+      renderCustomerView();
+      renderAdminSettings();
+      switchView('customer');
+      if (isStoreBillLocked) {
+        setTimeout(triggerReceiptPrint, 250);
+      }
+      showToast('อัปเดตตัวอย่างบนเบราว์เซอร์แล้ว (โหมด Demo — ยังไม่เชื่อมฐานข้อมูลจริง)', 'success');
+    }
+
+    /* สร้างลิงก์เรียกเก็บเงิน */
+    function updateGeneratedLink() {
+      const amt = document.getElementById('genAmount').value || '150.00';
+      const note = document.getElementById('genNote').value || 'ใช้บริการร้านโนริ';
+      const lock = document.getElementById('genLock').checked ? '1' : '0';
+      const baseUrl = window.location.origin === 'null' || window.location.protocol === 'file:'
+        ? 'index.html'
+        : (window.location.origin + window.location.pathname);
+      const url = `${baseUrl}?amount=${encodeURIComponent(amt)}&note=${encodeURIComponent(note)}&lock=${lock}`;
+      document.getElementById('generatedLinkOutput').value = url;
+    }
+
+    function applyGeneratedBillPreview() {
+      const amt = parseFloat(document.getElementById('genAmount').value);
+      appConfig.amount = isNaN(amt) ? 150 : amt;
+      appConfig.slipNote = document.getElementById('genNote').value || 'ใช้บริการร้านโนริ';
+      appConfig.lockAmount = document.getElementById('genLock').checked;
+      isStoreBillLocked = appConfig.lockAmount;
+      isOpenedFromPaymentLink = true;
+      isCustomerSelfLocked = false;
+      appConfig.isModified = true;
+      persistDemoConfig();
+      renderCustomerView();
+      renderAdminSettings();
+      switchView('customer');
+      // เวลาเปิดจากลิงก์ยอดเงินที่สร้างไว้ ให้มาสคอตปริ้น QR ออกมาอัตโนมัติทันที
+      setTimeout(() => triggerReceiptPrint(true), 260);
+      showToast('เปิดหน้าลูกค้าตามบิลที่สร้างและปริ้น QR อัตโนมัติแล้ว (โหมด Demo)', 'success');
+    }
+
+    /* ============================================================================
+6. ระบบแจ้งโอน / แนบสลิป และตรวจสลิปฝั่งหลังบ้าน (Demo)
+       ============================================================================ */
+    function openSlipModal() {
+      document.getElementById('modalSlipAmount').textContent = '฿ ' + formatMoney(appConfig.amount);
+      document.getElementById('slipCustomerNote').value = appConfig.slipNote;
+      const selectEl = document.getElementById('slipChannelSelect');
+      const enabled = appConfig.channels.filter(c => c.enabled);
+      selectEl.innerHTML = enabled.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)} (${escapeHtml(c.number)})</option>`).join('');
+
+      // เคลียร์รูปเดิม
+      activeSlipPreviewData = '';
+      document.getElementById('slipFileInput').value = '';
+      document.getElementById('slipPreviewImg').classList.add('hidden');
+      document.getElementById('slipUploadPlaceholder').classList.remove('hidden');
+
+      document.getElementById('slipModal').classList.remove('hidden');
+    }
+
+    function handleSlipImagePreview(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        activeSlipPreviewData = e.target.result;
+        const img = document.getElementById('slipPreviewImg');
+        img.src = activeSlipPreviewData;
+        img.classList.remove('hidden');
+        document.getElementById('slipUploadPlaceholder').classList.add('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function submitDemoSlip(event) {
+      event.preventDefault();
+      const name = document.getElementById('slipCustomerName').value.trim();
+      const channel = document.getElementById('slipChannelSelect').value;
+      const note = document.getElementById('slipCustomerNote').value.trim();
+
+      const now = new Date();
+      const timeStr = `วันนี้ ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} น.`;
+
+      const newSlip = {
+        id: 'TEST-' + String(Math.floor(100 + Math.random() * 900)),
+        origin: 'session_demo', // แยกชัดเจนว่าส่งจากการทดลองของผู้ใช้ในเซสชันนี้
+        customerName: name,
+        amount: parseFloat(appConfig.amount) || 0,
+        channel: channel,
+        note: note,
+        status: 'pending',
+        createdAt: timeStr,
+        slipPreview: activeSlipPreviewData
+      };
+
+      appSlips.unshift(newSlip);
+      persistDemoSlips();
+      document.getElementById('slipForm').reset();
+      closeModal('slipModal');
+      renderAdminSlips();
+      updatePendingBadges();
+
+      openInfoModal({
+        title: 'ส่งข้อมูลแจ้งโอนจำลองแล้ว!',
+        body: `ระบบได้รับรายการทดสอบรหัส <strong>${newSlip.id}</strong> ยอด <strong>฿${formatMoney(newSlip.amount)}</strong> แล้ว<br/><br/><span class="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-lg inline-block">หมายเหตุ: โหมด Demo ยังไม่ได้บันทึกลงฐานข้อมูลจริง คุณสามารถกดดูรายการนี้ได้ที่เมนู "หลังบ้านร้านค้า"</span>`,
+        iconType: 'success',
+        actions: [
+          { label: 'ดูรายการในหลังบ้าน', primary: true, onClick: () => { closeModal('infoModal'); switchView('admin'); switchAdminTab('slips'); } },
+          { label: 'ปิดหน้าต่าง', primary: false, onClick: () => closeModal('infoModal') }
+        ]
+      });
+    }
+
+    function renderAdminSlips() {
+      const container = document.getElementById('slipsListContainer');
+      const total = appSlips.length;
+      const pending = appSlips.filter(s => s.status === 'pending').length;
+      const approved = appSlips.filter(s => s.status === 'approved').length;
+      const approvedSum = appSlips.filter(s => s.status === 'approved').reduce((acc, s) => acc + (parseFloat(s.amount) || 0), 0);
+
+      document.getElementById('statTotalCount').textContent = total;
+      document.getElementById('statPendingCount').textContent = pending;
+      document.getElementById('statApprovedCount').textContent = approved;
+      document.getElementById('statApprovedSum').textContent = '฿' + formatMoney(approvedSum);
+      document.getElementById('slipCountTabBadge').textContent = total;
+
+      if (appSlips.length === 0) {
+        container.innerHTML = `<div class="text-center py-10 text-sm text-berry-900/50">ยังไม่มีรายการแจ้งโอนในโหมด Demo</div>`;
+        return;
+      }
+
+      container.innerHTML = appSlips.map(slip => {
+        const statusMap = {
+          pending:  { text: 'รอตรวจสอบ', cls: 'bg-amber-100 text-amber-800 border-amber-200' },
+          approved: { text: 'ยืนยันยอดแล้ว', cls: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+          rejected: { text: 'ปฏิเสธ/ยอดไม่ตรง', cls: 'bg-rose-100 text-rose-800 border-rose-200' }
+        };
+        const st = statusMap[slip.status] || statusMap.pending;
+        const originBadge = slip.origin === 'sample'
+          ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600">ข้อมูลตัวอย่าง</span>`
+          : `<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-pink-100 text-berry-700">ส่งทดสอบจากเบราว์เซอร์นี้</span>`;
+
+        return `
+          <div class="p-4 rounded-2xl border border-pink-100 bg-pink-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-start gap-3">
+              <div class="w-12 h-12 rounded-xl bg-white border border-pink-200 flex items-center justify-center overflow-hidden shrink-0">
+                ${slip.slipPreview
+                  ? `<img src="${slip.slipPreview}" alt="สลิป" class="w-full h-full object-cover cursor-pointer" onclick="viewSlipImageModal('${slip.id}')" />`
+                  : `<svg class="w-6 h-6 text-pink-300" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`
+                }
+              </div>
+              <div>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="font-title text-sm font-medium text-berry-900">${escapeHtml(slip.customerName)}</span>
+                  ${originBadge}
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-medium border ${st.cls}">${st.text}</span>
+                </div>
+                <p class="text-xs text-berry-900/70 mt-0.5">
+                  ${escapeHtml(slip.channel)} • โน้ต: "${escapeHtml(slip.note || '-')}" • ${escapeHtml(slip.createdAt)}
+                </p>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-pink-100">
+              <span class="font-title text-lg font-semibold text-berry-600 mr-2">฿${formatMoney(slip.amount)}</span>
+              ${slip.status === 'pending' ? `
+                <button type="button" onclick="updateSlipStatus('${slip.id}', 'approved')" class="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition-all">ยืนยัน</button>
+                <button type="button" onclick="updateSlipStatus('${slip.id}', 'rejected')" class="px-3 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-medium transition-all">ปฏิเสธ</button>
+              ` : `
+                <button type="button" onclick="updateSlipStatus('${slip.id}', 'pending')" class="px-3 py-1.5 rounded-xl bg-white hover:bg-pink-50 border border-pink-200 text-berry-900/70 text-xs">คืนสถานะรอตรวจ</button>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateSlipStatus(id, newStatus) {
+      const target = appSlips.find(s => s.id === id);
+      if (!target) return;
+      target.status = newStatus;
+      persistDemoSlips();
+      renderAdminSlips();
+      updatePendingBadges();
+      showToast('อัปเดตสถานะในโหมด Demo เรียบร้อย', 'success');
+    }
+
+    function viewSlipImageModal(id) {
+      const target = appSlips.find(s => s.id === id);
+      if (!target || !target.slipPreview) return;
+      openInfoModal({
+        title: `ภาพสลิปตัวอย่าง (${target.id})`,
+        body: `<img src="${target.slipPreview}" alt="สลิปเต็ม" class="max-h-72 mx-auto rounded-xl border border-pink-200 shadow-sm mt-2" />`,
+        iconType: 'info',
+        actions: [{ label: 'ปิด', primary: true, onClick: () => closeModal('infoModal') }]
+      });
+    }
+
+    function updatePendingBadges() {
+      const pending = appSlips.filter(s => s.status === 'pending').length;
+      const badge = document.getElementById('pendingBadgeNav');
+      if (!badge) return;
+      if (pending > 0) {
+        badge.textContent = pending;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    /* ============================================================================
+7. Modal อื่นๆ (ล็อกยอด, แชทร้านค้า, รีเซ็ต Demo) และสลับแท็บ
+       ============================================================================ */
+    function showLockInfoModal() {
+      if (appConfig.lockAmount) {
+        openInfoModal({
+          title: 'ยอดโอนนี้ถูกล็อกโดยร้านค้า',
+          body: `ยอดชำระ <strong>฿ ${formatMoney(appConfig.amount)}</strong> ถูกล็อกไว้เพื่อป้องกันการโอนผิดยอด หากต้องการทดลองปลดล็อกให้ลูกค้ากรอกยอดเอง สามารถสลับเปิด-ปิดได้ที่เมนู <strong>หลังบ้านร้านค้า</strong> ครับ`,
+          iconType: 'lock',
+          actions: [
+            { label: 'ไปตั้งค่าที่หลังบ้าน', primary: true, onClick: () => { closeModal('infoModal'); switchView('admin'); } },
+            { label: 'รับทราบ', primary: false, onClick: () => closeModal('infoModal') }
+          ]
+        });
+      } else {
+        openInfoModal({
+          title: 'เปิดให้กรอกยอดโอนเอง',
+          body: 'ขณะนี้ร้านค้าปลดล็อกยอดไว้ คุณสามารถแตะที่ตัวเลขยอดเงินด้านบนเพื่อพิมพ์จำนวนเงินที่ต้องการโอนได้เลยครับ',
+          iconType: 'info',
+          actions: [{ label: 'ตกลง', primary: true, onClick: () => closeModal('infoModal') }]
+        });
+      }
+    }
+
+    function openChatOrQrModal() {
+      const url = appConfig.chatUrl || 'https://line.me/ti/p/@norishop-demo';
+      openInfoModal({
+        title: `ติดต่อแชท ${escapeHtml(appConfig.shopName)}`,
+        body: `โอนเงินเรียบร้อยแล้วสามารถส่งสลิปให้แอดมินทางแชทได้ที่ลิงก์ด้านล่าง:<br/><div class="mt-2 px-3 py-2 rounded-xl bg-pink-50 border border-pink-200 text-xs text-berry-700 break-all">${escapeHtml(url)}</div>`,
+        iconType: 'chat',
+        actions: [
+          { label: 'คัดลอกลิงก์แชท', primary: true, onClick: () => { copyTextValue(url, 'คัดลอกลิงก์แชทร้านค้าแล้ว'); closeModal('infoModal'); } },
+          { label: 'ปิด', primary: false, onClick: () => closeModal('infoModal') }
+        ]
+      });
+    }
+
+    function openResetConfirmModal() {
+      openInfoModal({
+        title: 'รีเซ็ตกลับเป็นข้อมูลตัวอย่าง?',
+        body: 'การตั้งค่าร้านค้า ช่องทางโอนเงิน และรายการแจ้งโอนจำลองทั้งหมดในเบราว์เซอร์นี้จะถูกรีเซ็ตกลับเป็นค่าเริ่มต้นของร้านโนริ',
+        iconType: 'warn',
+        actions: [
+          {
+            label: 'ยืนยันรีเซ็ต',
+            primary: true,
+            onClick: () => {
+              localStorage.removeItem(STORAGE_KEY_CONFIG);
+              localStorage.removeItem(STORAGE_KEY_SLIPS);
+              appConfig = JSON.parse(JSON.stringify(DEFAULT_SAMPLE_CONFIG));
+              appSlips = JSON.parse(JSON.stringify(DEFAULT_SAMPLE_SLIPS));
+              isStoreBillLocked = false;
+              isCustomerSelfLocked = false;
+              hideReceiptPaper();
+              renderCustomerView();
+              renderAdminSettings();
+              closeModal('infoModal');
+              showToast('รีเซ็ตกลับเป็นข้อมูลตัวอย่างเรียบร้อยแล้ว', 'success');
+            }
+          },
+          { label: 'ยกเลิก', primary: false, onClick: () => closeModal('infoModal') }
+        ]
+      });
+    }
+
+    function openInfoModal({ title, body, iconType, actions }) {
+      const iconMap = {
+        lock: `<svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"></rect><path d="M8 11V7a4 4 0 018 0v4"></path></svg>`,
+        success: `<svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`,
+        chat: `<svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>`,
+        warn: `<svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
+        info: `<svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`
+      };
+
+      document.getElementById('infoModalIcon').innerHTML = iconMap[iconType] || iconMap.info;
+      document.getElementById('infoModalTitle').textContent = title;
+      document.getElementById('infoModalBody').innerHTML = body;
+
+      const actionsEl = document.getElementById('infoModalActions');
+      actionsEl.innerHTML = '';
+      (actions || []).forEach(act => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = act.label;
+        btn.className = act.primary
+          ? 'px-5 py-2.5 rounded-2xl btn-berry text-white font-title text-sm font-medium shadow-btn-berry'
+          : 'px-5 py-2.5 rounded-2xl bg-pink-50 hover:bg-pink-100 text-berry-900 font-title text-sm font-medium';
+        btn.onclick = act.onClick;
+        actionsEl.appendChild(btn);
+      });
+
+      document.getElementById('infoModal').classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function switchView(view) {
+      const custView = document.getElementById('customerView');
+      const admView = document.getElementById('adminView');
+      const custBtn = document.getElementById('tabCustomerBtn');
+      const admBtn = document.getElementById('tabAdminBtn');
+
+      if (view === 'customer') {
+        custView.classList.remove('hidden');
+        admView.classList.add('hidden');
+        if (custBtn) custBtn.className = 'px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 bg-berry-600 text-white shadow-sm';
+        if (admBtn) admBtn.className = 'px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 text-berry-900 hover:text-berry-600';
+        renderCustomerView();
+      } else {
+        custView.classList.add('hidden');
+        admView.classList.remove('hidden');
+        if (admBtn) admBtn.className = 'px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 bg-berry-600 text-white shadow-sm';
+        if (custBtn) custBtn.className = 'px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 text-berry-900 hover:text-berry-600';
+        renderAdminSettings();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function switchAdminTab(tabName) {
+      ['settings', 'linkgen', 'slips'].forEach(t => {
+        const panel = document.getElementById('adminPanel-' + t);
+        const btn = document.getElementById('adminTab-' + t);
+        if (t === tabName) {
+          panel.classList.remove('hidden');
+          btn.className = 'admin-subtab px-4 py-2.5 rounded-2xl text-sm font-medium bg-berry-600 text-white shadow-sm flex items-center gap-2 transition-all';
+        } else {
+          panel.classList.add('hidden');
+          btn.className = 'admin-subtab px-4 py-2.5 rounded-2xl text-sm font-medium bg-white text-berry-900 border border-pink-200 hover:bg-pink-50 flex items-center gap-2 transition-all';
+        }
+      });
+    }
+
+    /* Toast แจ้งเตือนมุมล่าง */
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const colorClass = type === 'error'
+        ? 'bg-rose-600 text-white'
+        : type === 'info'
+          ? 'bg-berry-900 text-white'
+          : 'bg-[#562441] text-white';
+
+      toast.className = `pointer-events-auto px-4 py-2.5 rounded-full shadow-lg text-xs sm:text-sm font-medium flex items-center gap-2 animate-pop ${colorClass}`;
+      toast.innerHTML = `
+        <span class="w-2 h-2 rounded-full ${type === 'error' ? 'bg-rose-300' : 'bg-pink-300'} shrink-0"></span>
+        <span>${escapeHtml(message)}</span>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.25s ease';
+        setTimeout(() => toast.remove(), 250);
+      }, 2400);
+    }
+
+    /* ป้องกัน XSS เมื่อแสดงข้อความจากผู้ใช้ */
+    function escapeHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function escapeJs(str) {
+      return String(str ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
+    /* เริ่มต้นการทำงานเมื่อโหลดหน้าเว็บ */
+    window.addEventListener('DOMContentLoaded', () => {
+      renderCustomerView();
+      renderAdminSettings();
+      updateVinylUiState();
+      setupAutoPlayOnFirstTouch();
+      // หากเปิดมาจากลิงก์ยอดเงิน (?amount=...) หรือร้านล็อกยอดไว้ ให้มาสคอตปริ้นใบเสร็จ QR ออกมาอัตโนมัติทันที
+      if (isOpenedFromPaymentLink || isStoreBillLocked) {
+        setTimeout(() => triggerReceiptPrint(false), 360);
+      }
+    });
+  </script>
+</body>
+</html>
